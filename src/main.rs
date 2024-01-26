@@ -5,6 +5,23 @@ use std::f32::consts::*;
 
 use bevy::{pbr::AmbientLight, prelude::*, render::mesh::skinning::SkinnedMesh};
 
+#[derive(Resource)]
+struct BirbState {
+    original_rots: Option<Vec<Quat>>,
+    angles: Vec<f32>,
+    angular_velocity: Vec<f32>,
+}
+
+impl BirbState {
+    fn new() -> Self {
+        Self {
+            original_rots: None,
+            angles: vec![0.0; 8],
+            angular_velocity: vec![0.0; 4],
+        }
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -12,6 +29,7 @@ fn main() {
             brightness: 1.0,
             ..default()
         })
+        .insert_resource(BirbState::new())
         .add_systems(Startup, setup)
         .add_systems(Update, joint_animation)
         .run();
@@ -49,6 +67,7 @@ fn joint_animation(
     children_query: Query<&Children>,
     mut transform_query: Query<&mut Transform>,
     keyboard_input: Res<Input<KeyCode>>,
+    mut birb_state: ResMut<BirbState>,
     // world: &World,
     names: Query<&Name>,
 ) {
@@ -59,24 +78,25 @@ fn joint_animation(
         // dbg!(&skinned_mesh_parent);
         // Mesh node is the parent of the skinned mesh entity.
         let mesh_node_entity = skinned_mesh_parent.get();
-        println!(
-            "Parent: {}",
-            names
-                .get(mesh_node_entity)
-                .map(|x| x.as_str())
-                .unwrap_or("No Name")
-        );
-        for desc in children_query.iter_descendants(mesh_node_entity) {
+        // println!(
+        //     "Parent: {}",
+        //     names
+        //         .get(mesh_node_entity)
+        //         .map(|x| x.as_str())
+        //         .unwrap_or("No Name")
+        // );
+        // for desc in children_query.iter_descendants(mesh_node_entity) {
             // dbg!(&desc);
-            println!(
-                "{desc:?} {}",
-                names.get(desc).map(|x| x.as_str()).unwrap_or("No Name")
-            );
+            // println!(
+            //     "{desc:?} {}",
+            //     names.get(desc).map(|x| x.as_str()).unwrap_or("No Name")
+            // );
             //     dbg!(&world.inspect_entity(desc));
-        }
+        // }
 
         // Get `Children` in the mesh node.
         let mesh_node_children = children_query.get(mesh_node_entity).unwrap();
+
         let center_bone = mesh_node_children[1];
         let center_bone_children = children_query.get(center_bone).unwrap();
 
@@ -92,56 +112,16 @@ fn joint_animation(
         let left4 = children_query.get(left3).unwrap()[0];
         let right4 = children_query.get(right3).unwrap()[0];
 
-        // for child in  {
-        //     println!("{}", names.get(*child).map(|x| x.as_str()).unwrap_or("No Name"));
-        // }
-        // let mesh_node_children = children_query.get(mesh_node_entity).unwrap();
-        // dbg!(&mesh_node_children);
-        // for child in mesh_node_children {
-        //     let more_children = children_query.get(*child);
-        //     dbg!(&more_children);
-        // }
-
-        // First joint is the second child of the mesh node.
-        // let first_joint_entity = mesh_node_children[1];
-        // dbg!(&first_joint_entity);
-        // dbg!(&world.inspect_entity(first_joint_entity));
-        // Get `Children` in the first joint.
-        // let first_joint_children = children_query.get(first_joint_entity).unwrap();
-
-        // Second joint is the first child of the first joint.
-        // let second_joint_entity = first_joint_children[0];
-        // dbg!(&second_joint_entity);
-
-        // Get `Transform` in the second joint.
-        // let mut second_joint_transform = transform_query.get_mut(second_joint_entity).unwrap();
-
-        if keyboard_input.pressed(KeyCode::A) {
-            transform_query.get_mut(left4).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+        if birb_state.original_rots.is_none() {
+            let mut prev_rots = vec![];
+            for (entity, angle) in [left4, left3, left2, left1, right1, right2, right3, right4].iter().zip(birb_state.angles.iter()) {
+                let rot = &mut transform_query.get_mut(*entity).unwrap().rotation;
+                prev_rots.push(*rot);
+                *rot = Quat::from_rotation_x(*angle) ;
+            }
+            birb_state.original_rots = Some(prev_rots);
+        } else {
+            
         }
-        if keyboard_input.pressed(KeyCode::S) {
-            transform_query.get_mut(left3).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
-        }
-        if keyboard_input.pressed(KeyCode::D) {
-            transform_query.get_mut(left2).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
-        }
-        if keyboard_input.pressed(KeyCode::F) {
-            transform_query.get_mut(left1).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
-        }
-        if keyboard_input.pressed(KeyCode::J) {
-            transform_query.get_mut(right1).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
-        }
-        if keyboard_input.pressed(KeyCode::K) {
-            transform_query.get_mut(right2).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
-        }
-        if keyboard_input.pressed(KeyCode::L) {
-            transform_query.get_mut(right3).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
-        }
-        if keyboard_input.pressed(KeyCode::Semicolon) {
-            transform_query.get_mut(right4).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
-        }
-    }
-    if ran {
-        // std::process::exit(0);
     }
 }
