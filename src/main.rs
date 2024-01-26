@@ -59,11 +59,20 @@ fn joint_animation(
         // dbg!(&skinned_mesh_parent);
         // Mesh node is the parent of the skinned mesh entity.
         let mesh_node_entity = skinned_mesh_parent.get();
-        println!("Parent: {}", names.get(mesh_node_entity).map(|x| x.as_str()).unwrap_or("No Name"));
+        println!(
+            "Parent: {}",
+            names
+                .get(mesh_node_entity)
+                .map(|x| x.as_str())
+                .unwrap_or("No Name")
+        );
         for desc in children_query.iter_descendants(mesh_node_entity) {
-        // dbg!(&desc);
-        println!("{desc:?} {}", names.get(desc).map(|x| x.as_str()).unwrap_or("No Name"));
-        //     dbg!(&world.inspect_entity(desc));
+            // dbg!(&desc);
+            println!(
+                "{desc:?} {}",
+                names.get(desc).map(|x| x.as_str()).unwrap_or("No Name")
+            );
+            //     dbg!(&world.inspect_entity(desc));
         }
 
         // Get `Children` in the mesh node.
@@ -106,11 +115,13 @@ fn joint_animation(
 
         // Get `Transform` in the second joint.
         // let mut second_joint_transform = transform_query.get_mut(second_joint_entity).unwrap();
-        let mut transform = transform_query.get_mut(right2).unwrap();
 
         if keyboard_input.pressed(KeyCode::A) {
-            dbg!(&transform);
-            transform.rotation = Quat::from_rotation_z(TAU * time.elapsed_seconds().sin());
+            let mut left2_transform = transform_query.get_mut(left2).unwrap();
+            left2_transform.rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+
+            let mut right2_transform = transform_query.get_mut(right2).unwrap();
+            right2_transform.rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
         }
     }
     if ran {
