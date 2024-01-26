@@ -26,7 +26,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // Spawn the first scene in `models/SimpleSkin/SimpleSkin.gltf`
     commands.spawn(SceneBundle {
-        scene: asset_server.load("models/SimpleSkin.gltf#Scene0"),
+        scene: asset_server.load("models/birb.glb#Scene0"),
         ..default()
     });
 }
@@ -52,24 +52,30 @@ fn joint_animation(
 ) {
     // Iter skinned mesh entity
     for skinned_mesh_parent in &parent_query {
+        dbg!(&skinned_mesh_parent);
         // Mesh node is the parent of the skinned mesh entity.
         let mesh_node_entity = skinned_mesh_parent.get();
         // Get `Children` in the mesh node.
         let mesh_node_children = children_query.get(mesh_node_entity).unwrap();
+        dbg!(&mesh_node_children);
+        // for child in mesh_node_children {
+        //     let more_children = children_query.get(*child);
+        //     dbg!(&more_children);
+        // }
 
         // First joint is the second child of the mesh node.
-        let first_joint_entity = mesh_node_children[1];
+        // let first_joint_entity = mesh_node_children[1];
         // Get `Children` in the first joint.
-        let first_joint_children = children_query.get(first_joint_entity).unwrap();
+        // let first_joint_children = children_query.get(first_joint_entity).unwrap();
 
         // Second joint is the first child of the first joint.
-        let second_joint_entity = first_joint_children[0];
+        // let second_joint_entity = first_joint_children[0];
         // Get `Transform` in the second joint.
-        let mut second_joint_transform = transform_query.get_mut(second_joint_entity).unwrap();
+        // let mut second_joint_transform = transform_query.get_mut(second_joint_entity).unwrap();
 
         if keyboard_input.pressed(KeyCode::A) {
-            second_joint_transform.rotation =
-                Quat::from_rotation_z(FRAC_PI_2 * time.elapsed_seconds().sin());
+            // second_joint_transform.rotation =
+            //     Quat::from_rotation_z(FRAC_PI_2 * time.elapsed_seconds().sin());
         }
     }
 }
