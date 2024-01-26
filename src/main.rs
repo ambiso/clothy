@@ -47,24 +47,33 @@ fn joint_animation(
     time: Res<Time>,
     parent_query: Query<&Parent, With<SkinnedMesh>>,
     children_query: Query<&Children>,
-    mut transform_query: Query<&mut Transform>,
+    mut transform_query: Query<&Transform>,
     keyboard_input: Res<Input<KeyCode>>,
+    world: &World,
 ) {
+    let mut ran = false;
     // Iter skinned mesh entity
     for skinned_mesh_parent in &parent_query {
+        ran = true;
         dbg!(&skinned_mesh_parent);
         // Mesh node is the parent of the skinned mesh entity.
         let mesh_node_entity = skinned_mesh_parent.get();
+        for desc in children_query.iter_descendants(mesh_node_entity) {
+            dbg!(&desc);
+            // dbg!(&world.inspect_entity(desc));
+        }
         // Get `Children` in the mesh node.
-        let mesh_node_children = children_query.get(mesh_node_entity).unwrap();
-        dbg!(&mesh_node_children);
+        // let mesh_node_children = children_query.get(mesh_node_entity).unwrap();
+        // dbg!(&mesh_node_children);
         // for child in mesh_node_children {
         //     let more_children = children_query.get(*child);
         //     dbg!(&more_children);
         // }
 
         // First joint is the second child of the mesh node.
-        // let first_joint_entity = mesh_node_children[1];
+        // let first_joint_entity = mesh_node_children[0];
+        // dbg!(&first_joint_entity);
+        // dbg!(&world.inspect_entity(first_joint_entity));
         // Get `Children` in the first joint.
         // let first_joint_children = children_query.get(first_joint_entity).unwrap();
 
@@ -77,5 +86,9 @@ fn joint_animation(
             // second_joint_transform.rotation =
             //     Quat::from_rotation_z(FRAC_PI_2 * time.elapsed_seconds().sin());
         }
+    }
+    if ran {
+
+        std::process::exit(0);
     }
 }
