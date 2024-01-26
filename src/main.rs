@@ -117,11 +117,28 @@ fn joint_animation(
         // let mut second_joint_transform = transform_query.get_mut(second_joint_entity).unwrap();
 
         if keyboard_input.pressed(KeyCode::A) {
-            let mut left2_transform = transform_query.get_mut(left2).unwrap();
-            left2_transform.rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
-
-            let mut right2_transform = transform_query.get_mut(right2).unwrap();
-            right2_transform.rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+            transform_query.get_mut(left4).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+        }
+        if keyboard_input.pressed(KeyCode::S) {
+            transform_query.get_mut(left3).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+        }
+        if keyboard_input.pressed(KeyCode::D) {
+            transform_query.get_mut(left2).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+        }
+        if keyboard_input.pressed(KeyCode::F) {
+            transform_query.get_mut(left1).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+        }
+        if keyboard_input.pressed(KeyCode::J) {
+            transform_query.get_mut(right1).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+        }
+        if keyboard_input.pressed(KeyCode::K) {
+            transform_query.get_mut(right2).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+        }
+        if keyboard_input.pressed(KeyCode::L) {
+            transform_query.get_mut(right3).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
+        }
+        if keyboard_input.pressed(KeyCode::Semicolon) {
+            transform_query.get_mut(right4).unwrap().rotation = Quat::from_rotation_x(-FRAC_PI_2 * time.elapsed_seconds().sin() / 2.0);
         }
     }
     if ran {
