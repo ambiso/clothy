@@ -48,6 +48,7 @@ fn joint_animation(
     parent_query: Query<&Parent, With<SkinnedMesh>>,
     children_query: Query<&Children>,
     mut transform_query: Query<&mut Transform>,
+    keyboard_input: Res<Input<KeyCode>>,
 ) {
     // Iter skinned mesh entity
     for skinned_mesh_parent in &parent_query {
@@ -66,7 +67,9 @@ fn joint_animation(
         // Get `Transform` in the second joint.
         let mut second_joint_transform = transform_query.get_mut(second_joint_entity).unwrap();
 
-        second_joint_transform.rotation =
-            Quat::from_rotation_z(FRAC_PI_2 * time.elapsed_seconds().sin());
+        if keyboard_input.pressed(KeyCode::A) {
+            second_joint_transform.rotation =
+                Quat::from_rotation_z(FRAC_PI_2 * time.elapsed_seconds().sin());
+        }
     }
 }
