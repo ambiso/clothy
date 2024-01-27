@@ -235,8 +235,8 @@ fn generate_terrain_chunk(
     let mut indices = Vec::new();
 
     // Generate terrain vertices
-    for x in 0..chunk_size {
-        for z in 0..chunk_size {
+    for x in 0..=chunk_size {
+        for z in 0..=chunk_size {
             let world_x = chunk_x + x as f32;
             let world_z = chunk_z + z as f32;
             let perlin_scale = 0.1;
@@ -282,15 +282,15 @@ fn generate_terrain_chunk(
     }
 
     // Generate indices for the mesh
-    for x in 0..(chunk_size - 1) {
-        for z in 0..(chunk_size - 1) {
-            let start = x * chunk_size + z;
+    for x in 0..(chunk_size) {
+        for z in 0..(chunk_size) {
+            let start = x * (chunk_size + 1) + z;
             indices.extend(&[
+                (start + chunk_size + 2) as u32,
                 (start + chunk_size + 1) as u32,
-                (start + chunk_size) as u32,
                 start as u32,
                 (start + 1) as u32,
-                (start + chunk_size + 1) as u32,
+                (start + chunk_size + 2) as u32,
                 start as u32,
             ]);
         }
