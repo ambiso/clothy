@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.12.1" }
+bevy_xpbd_3d = "0.3.3"
 noise = "0.8.2"
 # smooth-bevy-cameras = "0.9.0"
 # bevy_shader_utils = "0.5.2"

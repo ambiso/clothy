@@ -17,7 +17,7 @@ struct BirbState {
     original_rots: Option<Vec<Quat>>,
     angles: Vec<f32>,
     angular_velocity: Vec<f32>,
-    global_pos: Transform
+    wing_joints: Option<Vec<Entity>>,
 }
 
 impl BirbState {
@@ -26,7 +26,7 @@ impl BirbState {
             original_rots: None,
             angles: vec![0.0; 8],
             angular_velocity: vec![0.0; 8],
-            global_pos: Transform::from_xyz(0.0, 0.0, 0.0)
+            wing_joints: None,
         }
     }
 }
@@ -90,10 +90,12 @@ fn setup(
     });
 
     // Spawn the first scene in `models/SimpleSkin/SimpleSkin.gltf`
-    commands.spawn(SceneBundle {
-        scene: asset_server.load("models/birb2.gltf#Scene0"),
-        ..default()
-    }).insert(Birb);
+    commands
+        .spawn(SceneBundle {
+            scene: asset_server.load("models/birb2.gltf#Scene0"),
+            ..default()
+        })
+        .insert(Birb);
 
     generate_terrain(&mut commands, &mut meshes, &mut materials);
 }
@@ -231,7 +233,6 @@ fn move_terrain(
 fn joint_animation(
     parent_query: Query<&Parent, With<SkinnedMesh>>,
     children_query: Query<&Children>,
-    time: Res<Time>,
     mut transform_query: Query<&mut Transform>,
     mut birb_state: ResMut<BirbState>,
     // names: Query<&Name>,
@@ -260,39 +261,44 @@ fn joint_animation(
         // }
 
         // Get `Children` in the mesh node.
-        let mesh_node_children = children_query.get(mesh_node_entity).unwrap();
+        if birb_state.wing_joints.is_none() {
+            let mesh_node_children = children_query.get(mesh_node_entity).unwrap();
 
-        let center_bone = mesh_node_children[1];
-        let center_bone_children = children_query.get(center_bone).unwrap();
+            let center_bone = mesh_node_children[1];
+            let center_bone_children = children_query.get(center_bone).unwrap();
 
-        let left1 = center_bone_children[1];
-        let right1 = center_bone_children[0];
+            let left1 = center_bone_children[1];
+            let right1 = center_bone_children[0];
 
-        let left2 = children_query.get(left1).unwrap()[0];
-        let right2 = children_query.get(right1).unwrap()[0];
+            let left2 = children_query.get(left1).unwrap()[0];
+            let right2 = children_query.get(right1).unwrap()[0];
 
-        let left3 = children_query.get(left2).unwrap()[0];
-        let right3 = children_query.get(right2).unwrap()[0];
+            let left3 = children_query.get(left2).unwrap()[0];
+            let right3 = children_query.get(right2).unwrap()[0];
 
-        let left4 = children_query.get(left3).unwrap()[0];
-        let right4 = children_query.get(right3).unwrap()[0];
+            let left4 = children_query.get(left3).unwrap()[0];
+            let right4 = children_query.get(right3).unwrap()[0];
 
+            birb_state.wing_joints = Some(vec![
+                left4, left3, left2, left1, right1, right2, right3, right4,
+            ]);
+        }
         if birb_state.original_rots.is_none() {
             let mut prev_rots = vec![];
-            for entity in [left4, left3, left2, left1, right1, right2, right3, right4] {
-                prev_rots.push(transform_query.get_mut(entity).unwrap().rotation);
+            for entity in birb_state.wing_joints.as_ref().unwrap() {
+                prev_rots.push(transform_query.get_mut(*entity).unwrap().rotation);
             }
             birb_state.original_rots = Some(prev_rots);
         }
-        for ((entity, angle), orig_rot) in
-            [left4, left3, left2, left1, right1, right2, right3, right4]
-                .iter()
-                .zip(birb_state.angles.iter())
-                .zip(birb_state.original_rots.as_ref().unwrap().iter())
+        for ((entity, angle), orig_rot) in birb_state
+            .wing_joints
+            .as_ref()
+            .unwrap()
+            .iter()
+            .zip(birb_state.angles.iter())
+            .zip(birb_state.original_rots.as_ref().unwrap().iter())
         {
-            let bone_pos = transform_query.get(*entity).unwrap();
-            let wind_force: Vec3 = calculate_wind_force(&time, bone_pos);
-            let rot: &mut Quat = &mut transform_query.get_mut(*entity).unwrap().rotation;
+            let rot = &mut transform_query.get_mut(*entity).unwrap().rotation;
             *rot = *orig_rot * Quat::from_rotation_x(*angle);
         }
     }
@@ -332,38 +338,59 @@ const ANGULAR_ACCELERATION: f32 = 20.0;
 const MIN_ANGLE: f32 = -0.15 * PI;
 const MAX_ANGLE: f32 = 0.15 * PI;
 
-fn birb_physics_update(time: Res<Time>, mut birb_state: ResMut<BirbState>) {
+fn birb_physics_update(
+    time: Res<Time>,
+    mut birb_state: ResMut<BirbState>,
+    transforms: Query<&Transform>,
+) {
     let birb_state = &mut *birb_state;
-    for (angle, angular_vel) in birb_state
-        .angles
-        .iter_mut()
-        .zip(birb_state.angular_velocity.iter_mut())
-    {
-        let mut new_angle = *angle + *angular_vel * time.delta_seconds();
-        if new_angle < MIN_ANGLE {
-            new_angle = MIN_ANGLE;
-            *angular_vel = 0.0;
+    if let Some(wing_joints) = birb_state.wing_joints.as_ref() {
+        for ((angle, angular_vel), wing_joint) in birb_state
+            .angles
+            .iter_mut()
+            .zip(birb_state.angular_velocity.iter_mut())
+            .zip(wing_joints)
+        {
+            // let wind_force: Vec3 = calculate_wind_force(&time, wing_joint);
+            // let rot: &mut Quat = &mut transforms.get_mut(*entity).unwrap().rotation;
+            let mut new_angle = *angle + *angular_vel * time.delta_seconds();
+            if new_angle < MIN_ANGLE {
+                new_angle = MIN_ANGLE;
+                *angular_vel = 0.0;
+            }
+            if new_angle > MAX_ANGLE {
+                new_angle = MAX_ANGLE;
+                *angular_vel = 0.0;
+            }
+            *angle = new_angle;
         }
-        if new_angle > MAX_ANGLE {
-            new_angle = MAX_ANGLE;
-            *angular_vel = 0.0;
-        }
-        *angle = new_angle;
     }
 }
 
-fn calculate_wind_force(
-    time: &Res<Time>,
-    bone: &Transform,
-) -> Vec3 {
+fn calculate_wind_force(time: &Res<Time>, bone: &Transform) -> Vec3 {
     let perlin = Perlin::new(1337);
     let time_factor = time.elapsed_seconds_f64();
 
     let position = bone.translation;
 
     // Use Perlin noise to generate wind force
-    let wind_force_x = perlin.get([position.x as f64, time_factor]) as f32;
-    let wind_force_y = perlin.get([position.y as f64, time_factor]) as f32;
-    let wind_force_z = perlin.get([position.z as f64, time_factor]) as f32;
+    let wind_force_x = perlin.get([
+        position.x as f64,
+        position.x as f64,
+        position.z as f64,
+        time_factor,
+    ]) as f32;
+    let wind_force_y = perlin.get([
+        position.x as f64 + 100.,
+        position.x as f64,
+        position.z as f64,
+        time_factor,
+    ]) as f32;
+    let wind_force_z = perlin.get([
+        position.x as f64 + 200.,
+        position.x as f64,
+        position.z as f64,
+        time_factor,
+    ]) as f32;
     Vec3::new(wind_force_x, wind_force_y, wind_force_z)
 }
