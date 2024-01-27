@@ -3,7 +3,9 @@
 
 use std::f32::consts::*;
 
-use bevy::{pbr::AmbientLight, prelude::*, render::mesh::skinning::SkinnedMesh};
+use bevy::{pbr::AmbientLight, prelude::*, render::mesh::{skinning::SkinnedMesh, Indices}};
+use noise::{NoiseFn, Perlin};
+use bevy::render::mesh::{Mesh, PrimitiveTopology};
 
 #[derive(Resource)]
 struct BirbState {
@@ -22,6 +24,11 @@ impl BirbState {
     }
 }
 
+#[derive(Component)]
+struct Terrain;
+
+
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -31,11 +38,16 @@ fn main() {
         })
         .insert_resource(BirbState::new())
         .add_systems(Startup, setup)
-        .add_systems(Update, (joint_animation, birb_inputs, birb_physics_update))
+        .add_systems(Update, (joint_animation, birb_inputs, move_terrain, birb_physics_update))
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>
+) {
     // Create a camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0.0, 4.5, 7.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -47,6 +59,103 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         scene: asset_server.load("models/birb2.gltf#Scene0"),
         ..default()
     });
+
+    generate_terrain(&mut commands, &mut meshes, &mut materials);
+}
+
+fn generate_terrain(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) {
+    let size = 100; // Size of the terrain
+    let max_height = 3.0; // Maximum elevation of the terrain
+    let perlin = Perlin::new(1337); // Perlin noise generator
+
+    let mut positions = Vec::new();
+    let mut normals = Vec::new();
+    let mut uvs = Vec::new();
+    let mut indices = Vec::new();
+
+    // Generate terrain vertices
+    for x in 0..size {
+        for z in 0..size {
+            let p = [x as f64 * 0.1, z as f64 * 0.1];
+            let height = perlin.get(p) as f32 * max_height;
+            let delta = 0.01;
+            let height_x = perlin.get([p[0] + delta, p[1]]) as f32 * max_height;
+            let height_z = perlin.get([p[0], p[1] + delta]) as f32 * max_height;
+            let original_point = Vec3::new(p[0] as f32, height, p[1] as f32);
+            let x_point = Vec3::new((p[0] + delta) as f32, height_x, p[1] as f32);
+            let z_point = Vec3::new(p[0] as f32, height_z, (p[1] + delta) as f32);
+            let real_normal = (x_point - original_point).cross(z_point - original_point).normalize();
+            
+
+            positions.push([x as f32, height, z as f32]);
+            normals.push(real_normal);
+            uvs.push([x as f32 / size as f32, z as f32 / size as f32]);
+        }
+    }
+
+    // Generate indices for the mesh
+    for x in 0..(size - 1) {
+        for z in 0..(size - 1) {
+            let start = x * size + z;
+            indices.extend(&[
+                start as u32,
+                (start + size) as u32,
+                (start + size + 1) as u32,
+                start as u32,
+                (start + size + 1) as u32,
+                (start + 1) as u32,
+            ]);
+        }
+    }
+
+    // Create the mesh
+    let mesh = Mesh::new(PrimitiveTopology::TriangleList)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+        .with_indices(Some(Indices::U32(indices)));
+
+    // Spawn the terrain entity
+    commands.spawn(PbrBundle {
+        transform: Transform::from_xyz(0.0, 0.0, -73.0),
+        mesh: meshes.add(mesh),
+        material: materials.add(Color::GREEN.into()),
+        ..default()
+    }).insert(Terrain);
+}
+
+fn move_terrain(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut query: Query<&mut Transform, With<Terrain>>,
+) {
+    // Speed of movement
+    let speed = 2.0;
+
+    for mut transform in query.iter_mut() {
+        // Move the terrain based on keyboard input
+        if keyboard_input.pressed(KeyCode::Down) {
+            transform.translation.z += speed;
+        }
+        if keyboard_input.pressed(KeyCode::Up) {
+            transform.translation.z -= speed;
+        }
+        if keyboard_input.pressed(KeyCode::Left) {
+            transform.translation.x -= speed;
+        }
+        if keyboard_input.pressed(KeyCode::Right) {
+            transform.translation.x += speed;
+        }
+        if keyboard_input.pressed(KeyCode::Numpad2) {
+            transform.translation.y -= speed;
+        }
+        if keyboard_input.pressed(KeyCode::Numpad8) {
+            transform.translation.y += speed;
+        }
+    }
 }
 
 /// The scene hierarchy currently looks somewhat like this:
