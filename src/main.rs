@@ -44,6 +44,7 @@ struct Birb;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        // .insert_resource(Gravity(Vec3::ZERO))
         .insert_resource(AmbientLight {
             brightness: 1.0,
             ..default()
@@ -349,6 +350,7 @@ fn birb_physics_update(
     mut birb_state: ResMut<BirbState>,
     mut birb: Query<&mut ExternalForce, With<Birb>>,
     transforms: Query<&Transform>,
+    global_transforms: Query<&GlobalTransform>,
 ) {
     let birb_state = &mut *birb_state;
     if let Some(wing_joints) = birb_state.wing_joints.as_ref() {
@@ -358,8 +360,9 @@ fn birb_physics_update(
             .zip(birb_state.angular_velocity.iter_mut())
             .zip(wing_joints)
         {
+            let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
             let wing_joint_transform = transforms.get(*wing_joint).unwrap();
-            let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_transform);
+            let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
             for mut b in &mut birb {
                 b.apply_force_at_point(wind_force, wing_joint_transform.translation, Vec3::ZERO);
             }
@@ -380,11 +383,11 @@ fn birb_physics_update(
     }
 }
 
-fn calculate_wind_force(time: &Res<Time>, bone: &Transform) -> Vec3 {
+fn calculate_wind_force(time: &Res<Time>, bone: &GlobalTransform) -> Vec3 {
     let perlin = Perlin::new(1337);
     let time_factor = time.elapsed_seconds_f64();
 
-    let position = bone.translation;
+    let position = bone.translation();
 
     // Use Perlin noise to generate wind force
     let wind_force_x = perlin.get([
