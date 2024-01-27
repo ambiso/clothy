@@ -192,10 +192,14 @@ fn generate_terrain(
     commands
         .spawn(PbrBundle {
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
-            mesh: meshes.add(mesh),
+            mesh: meshes.add(mesh.clone()),
             material: materials.add(Color::GREEN.into()),
             ..default()
         })
+        .insert((
+            RigidBody::Static,
+            Collider::convex_hull_from_mesh(&mesh).unwrap(),
+        ))
         .insert(NoFrustumCulling)
         .insert(Terrain);
 }
