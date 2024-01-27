@@ -12,6 +12,7 @@ struct BirbState {
     original_rots: Option<Vec<Quat>>,
     angles: Vec<f32>,
     angular_velocity: Vec<f32>,
+    global_pos: Transform
 }
 
 impl BirbState {
@@ -20,6 +21,7 @@ impl BirbState {
             original_rots: None,
             angles: vec![0.0; 8],
             angular_velocity: vec![0.0; 8],
+            global_pos: Transform::from_xyz(0.0, 0.0, 0.0)
         }
     }
 }
@@ -232,7 +234,9 @@ fn joint_animation(
                 .zip(birb_state.angles.iter())
                 .zip(birb_state.original_rots.as_ref().unwrap().iter())
         {
-            let rot = &mut transform_query.get_mut(*entity).unwrap().rotation;
+            let bone_pos = transform_query.get(*entity).unwrap();
+            let wind_force: Vec3 = calculate_wind_force(&time, bone_pos);
+            let rot: &mut Quat = &mut transform_query.get_mut(*entity).unwrap().rotation;
             *rot = *orig_rot * Quat::from_rotation_x(*angle);
         }
     }
@@ -290,4 +294,20 @@ fn birb_physics_update(time: Res<Time>, mut birb_state: ResMut<BirbState>) {
         }
         *angle = new_angle;
     }
+}
+
+fn calculate_wind_force(
+    time: &Res<Time>,
+    bone: &Transform,
+) -> Vec3 {
+    let perlin = Perlin::new(1337);
+    let time_factor = time.elapsed_seconds_f64();
+
+    let position = bone.translation;
+
+    // Use Perlin noise to generate wind force
+    let wind_force_x = perlin.get([position.x as f64, time_factor]) as f32;
+    let wind_force_y = perlin.get([position.y as f64, time_factor]) as f32;
+    let wind_force_z = perlin.get([position.z as f64, time_factor]) as f32;
+    Vec3::new(wind_force_x, wind_force_y, wind_force_z)
 }
