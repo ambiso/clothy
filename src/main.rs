@@ -159,7 +159,7 @@ fn birb_inputs(
     }
 }
 
-const ANGULAR_ACCELERATION: f32 = 3.0;
+const ANGULAR_ACCELERATION: f32 = 20.0;
 const MIN_ANGLE: f32 = -0.15 * PI;
 const MAX_ANGLE: f32 = 0.15 * PI;
 
