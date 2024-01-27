@@ -22,7 +22,7 @@ fn camera_controller(
         for mut cam in &mut camera {
             let bird_view = target.rotation * Vec3::new(0.0, 0.0, 1.0);
             let mut cam_transform =
-                Transform::from_translation(target.translation - (bird_view + Vec3::new(0.0, -2.0, 0.0)).normalize() * CAMERA_DIST);
+                Transform::from_translation(target.translation - (bird_view - Vec3::new(0.0, 0.5, 0.0)).normalize() * CAMERA_DIST);
             cam_transform.look_at(target.translation, Vec3::Y);
             *cam = cam_transform;
         }
