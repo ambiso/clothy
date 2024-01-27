@@ -2,6 +2,7 @@
 //! Example taken from <https://github.com/KhronosGroup/glTF-Tutorials/blob/master/gltfTutorial/gltfTutorial_019_SimpleSkin.md>
 
 use std::f32::consts::*;
+use std::ops::Mul;
 
 use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
@@ -348,6 +349,7 @@ fn birb_inputs(
         KeyCode::Semicolon,
     ]
     .iter()
+    .rev()
     .zip(birb_state.angular_velocity.iter_mut())
     {
         *angular_vel += ANGULAR_ACCELERATION
@@ -379,24 +381,6 @@ fn birb_physics_update(
             .zip(wing_joints)
         {
             let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
-            // let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
-            for (mut b, bt) in &mut birb {
-                // b.apply_force_at_point(
-                //     wind_force,
-                //     wing_joint_global_transform.translation(),
-                //     bt.translation,
-                // );
-                let wing_rot = wing_joint_global_transform.reparented_to(bt);
-                b.apply_force_at_point(
-                    wing_rot.rotation * Vec3::new(0.0, 1.0, 0.0)
-                        * if *angular_vel <= 0.0 { 0.01 } else { 100.0 }
-                        * *angular_vel
-                        * time.delta_seconds(),
-                    wing_joint_global_transform.translation(),
-                    bt.translation(),
-                );
-            }
-
             //
             // let rot: &mut Quat = &mut transforms.get_mut(*entity).unwrap().rotation;
             let mut new_angle = *angle + *angular_vel * time.delta_seconds();
@@ -409,6 +393,45 @@ fn birb_physics_update(
                 *angular_vel = 0.0;
             }
             *angle = new_angle;
+        }
+        let lengths = [1.14, 2.57, 2.24, 1.29];
+        let mut accumulated_angular_vels = [0.0; 8];
+        for side in 0..2 {
+            let mut accumulated_angular_vel = 0.0;
+            for joint in 0..4 {
+                let length = lengths[joint];
+                let idx = side * 4 + if side == 0 { 3 - joint } else { joint };
+                accumulated_angular_vel += birb_state.angular_velocity[idx] * length;
+                accumulated_angular_vels[idx] = accumulated_angular_vel;
+            }
+        }
+        dbg!(&accumulated_angular_vels);
+        for (wing_joint, accumulated_angular_vel) in
+            wing_joints.iter().zip(accumulated_angular_vels)
+        {
+            let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
+            // let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
+            for (mut b, bt) in &mut birb {
+                // b.apply_force_at_point(
+                //     wind_force,
+                //     wing_joint_global_transform.translation(),
+                //     bt.translation,
+                // );
+                let wing_rot = wing_joint_global_transform.reparented_to(bt);
+                b.apply_force_at_point(
+                    ((wing_rot.rotation * Vec3::new(0.0, 1.0, 0.0))
+                        * if accumulated_angular_vel <= 0.0 {
+                            0.01
+                        } else {
+                            100.0
+                        })
+                    .mul(Vec3::new(0.001, 1.0, 0.001))
+                        * accumulated_angular_vel
+                        * time.delta_seconds(),
+                    wing_joint_global_transform.translation(),
+                    bt.translation(),
+                );
+            }
         }
     }
     // dbg!();
