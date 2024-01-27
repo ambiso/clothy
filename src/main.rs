@@ -160,6 +160,10 @@ fn setup(
         .insert(CameraTarget)
         .insert(Birb);
 
+    commands.spawn(DirectionalLightBundle {
+        ..Default::default()
+    });
+
     // generate_terrain(&mut commands, &mut meshes, &mut materials);
 }
 
@@ -356,10 +360,8 @@ fn joint_animation(
     mut birb_state: ResMut<BirbState>,
     // names: Query<&Name>,
 ) {
-    let mut ran = false;
     // Iter skinned mesh entity
     for skinned_mesh_parent in &parent_query {
-        ran = true;
         // dbg!(&skinned_mesh_parent);
         // Mesh node is the parent of the skinned mesh entity.
         let mesh_node_entity = skinned_mesh_parent.get();
@@ -472,7 +474,7 @@ fn birb_physics_update(
             .zip(birb_state.angular_velocity.iter_mut())
             .zip(wing_joints)
         {
-            let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
+            // let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
             //
             // let rot: &mut Quat = &mut transforms.get_mut(*entity).unwrap().rotation;
             let mut new_angle = *angle + *angular_vel * time.delta_seconds();
