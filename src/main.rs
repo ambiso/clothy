@@ -76,6 +76,14 @@ impl TerrainState {
 #[derive(Component)]
 struct Birb;
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
+enum AppState {
+    MainMenu,
+    #[default]
+    InGame,
+    Paused,
+}
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
@@ -84,6 +92,7 @@ fn main() {
             brightness: 1.0,
             ..default()
         })
+        .add_state::<AppState>()
         .insert_resource(BirbState::new())
         .insert_resource(TerrainState::new(16, 100.0))
         .add_systems(Startup, setup)
@@ -95,9 +104,11 @@ fn main() {
                 birb_inputs,
                 move_terrain,
                 birb_physics_update,
-                debug_keys,
-            ),
+            )
+                .run_if(in_state(AppState::InGame)),
         )
+        .add_systems(Update, menu_stuff)
+        .add_systems(Update, debug_keys)
         .add_plugins(plugins::camera::ControllerPlugin)
         // .edit_schedule(PostUpdate, |schedule| {
         //     schedule.set_build_settings(ScheduleBuildSettings {
@@ -106,6 +117,28 @@ fn main() {
         //     });
         // })
         .run();
+}
+
+fn menu_stuff(
+    mut physics_time: ResMut<Time<Physics>>,
+    mut time: ResMut<Time>,
+    current_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
+    inputs: Res<Input<KeyCode>>,
+) {
+    if inputs.just_pressed(KeyCode::Escape) {
+        match **current_state {
+            AppState::MainMenu => todo!(),
+            AppState::InGame => {
+                next_state.set(AppState::Paused);
+                physics_time.pause();
+            }
+            AppState::Paused => {
+                next_state.set(AppState::InGame);
+                physics_time.unpause();
+            }
+        }
+    }
 }
 
 fn debug_keys(
