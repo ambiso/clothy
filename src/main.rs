@@ -17,7 +17,7 @@ impl BirbState {
         Self {
             original_rots: None,
             angles: vec![0.0; 8],
-            angular_velocity: vec![0.0; 4],
+            angular_velocity: vec![0.0; 8],
         }
     }
 }
@@ -31,14 +31,14 @@ fn main() {
         })
         .insert_resource(BirbState::new())
         .add_systems(Startup, setup)
-        .add_systems(Update, joint_animation)
+        .add_systems(Update, (joint_animation, birb_inputs, birb_physics_update))
         .run();
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Create a camera
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(0.0, 4.5, 7.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
 
@@ -66,10 +66,8 @@ fn joint_animation(
     parent_query: Query<&Parent, With<SkinnedMesh>>,
     children_query: Query<&Children>,
     mut transform_query: Query<&mut Transform>,
-    keyboard_input: Res<Input<KeyCode>>,
     mut birb_state: ResMut<BirbState>,
-    // world: &World,
-    names: Query<&Name>,
+    // names: Query<&Name>,
 ) {
     let mut ran = false;
     // Iter skinned mesh entity
@@ -86,12 +84,12 @@ fn joint_animation(
         //         .unwrap_or("No Name")
         // );
         // for desc in children_query.iter_descendants(mesh_node_entity) {
-            // dbg!(&desc);
-            // println!(
-            //     "{desc:?} {}",
-            //     names.get(desc).map(|x| x.as_str()).unwrap_or("No Name")
-            // );
-            //     dbg!(&world.inspect_entity(desc));
+        // dbg!(&desc);
+        // println!(
+        //     "{desc:?} {}",
+        //     names.get(desc).map(|x| x.as_str()).unwrap_or("No Name")
+        // );
+        //     dbg!(&world.inspect_entity(desc));
         // }
 
         // Get `Children` in the mesh node.
@@ -100,8 +98,8 @@ fn joint_animation(
         let center_bone = mesh_node_children[1];
         let center_bone_children = children_query.get(center_bone).unwrap();
 
-        let left1 = center_bone_children[0];
-        let right1 = center_bone_children[1];
+        let left1 = center_bone_children[1];
+        let right1 = center_bone_children[0];
 
         let left2 = children_query.get(left1).unwrap()[0];
         let right2 = children_query.get(right1).unwrap()[0];
@@ -114,14 +112,73 @@ fn joint_animation(
 
         if birb_state.original_rots.is_none() {
             let mut prev_rots = vec![];
-            for (entity, angle) in [left4, left3, left2, left1, right1, right2, right3, right4].iter().zip(birb_state.angles.iter()) {
-                let rot = &mut transform_query.get_mut(*entity).unwrap().rotation;
-                prev_rots.push(*rot);
-                *rot = Quat::from_rotation_x(*angle) ;
+            for entity in [left4, left3, left2, left1, right1, right2, right3, right4] {
+                prev_rots.push(transform_query.get_mut(entity).unwrap().rotation);
             }
             birb_state.original_rots = Some(prev_rots);
-        } else {
-            
         }
+        for ((entity, angle), orig_rot) in
+            [left4, left3, left2, left1, right1, right2, right3, right4]
+                .iter()
+                .zip(birb_state.angles.iter())
+                .zip(birb_state.original_rots.as_ref().unwrap().iter())
+        {
+            let rot = &mut transform_query.get_mut(*entity).unwrap().rotation;
+            *rot = *orig_rot * Quat::from_rotation_x(*angle);
+        }
+    }
+}
+
+fn birb_inputs(
+    time: Res<Time>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut birb_state: ResMut<BirbState>,
+    // world: &World,
+    // names: Query<&Name>,
+) {
+    for (key, angular_vel) in [
+        KeyCode::A,
+        KeyCode::S,
+        KeyCode::D,
+        KeyCode::F,
+        KeyCode::J,
+        KeyCode::K,
+        KeyCode::L,
+        KeyCode::Semicolon,
+    ]
+    .iter()
+    .zip(birb_state.angular_velocity.iter_mut())
+    {
+        *angular_vel += ANGULAR_ACCELERATION
+            * time.delta_seconds()
+            * if keyboard_input.pressed(*key) {
+                1.0
+            } else {
+                -1.0
+            };
+    }
+}
+
+const ANGULAR_ACCELERATION: f32 = 3.0;
+const MIN_ANGLE: f32 = -0.15 * PI;
+const MAX_ANGLE: f32 = 0.15 * PI;
+
+fn birb_physics_update(time: Res<Time>, mut birb_state: ResMut<BirbState>) {
+    let birb_state = &mut *birb_state;
+    for (angle, angular_vel) in birb_state
+        .angles
+        .iter_mut()
+        .zip(birb_state.angular_velocity.iter_mut())
+    {
+        let mut new_angle = *angle + *angular_vel * time.delta_seconds();
+        if new_angle < MIN_ANGLE {
+            new_angle = MIN_ANGLE;
+            *angular_vel = 0.0;
+        }
+        if new_angle > MAX_ANGLE {
+            new_angle = MAX_ANGLE;
+            *angular_vel = 0.0;
+        }
+        *angle = new_angle;
     }
 }
