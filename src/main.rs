@@ -121,7 +121,6 @@ fn main() {
 
 fn menu_stuff(
     mut physics_time: ResMut<Time<Physics>>,
-    mut time: ResMut<Time>,
     current_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
     inputs: Res<Input<KeyCode>>,
