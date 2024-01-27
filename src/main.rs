@@ -132,7 +132,6 @@ fn generate_terrain(
             let height_zm = perlin.get([p[0], p[1] - delta]) as f32 * max_height;
             let height_xp = perlin.get([p[0] + delta, p[1]]) as f32 * max_height;
             let height_zp = perlin.get([p[0], p[1] + delta]) as f32 * max_height;
-            let original_point = Vec3::new(p[0] as f32, height, p[1] as f32);
             let x_point = Vec3::new((p[0] + delta) as f32, height_xp, p[1] as f32)
                 - Vec3::new((p[0] - delta) as f32, height_xm, p[1] as f32);
             let z_point = Vec3::new(p[0] as f32, height_zp, (p[1] + delta) as f32)

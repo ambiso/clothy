@@ -15,10 +15,10 @@ pub struct CameraTarget;
 const CAMERA_DIST: f32 = 15.0;
 
 fn camera_controller(
-    mut transform: Query<&Transform, (With<CameraTarget>, Without<Camera>)>,
+    mut target: Query<&Transform, (With<CameraTarget>, Without<Camera>)>,
     mut camera: Query<&mut Transform, (With<Camera>, Without<CameraTarget>)>,
 ) {
-    for target in &mut transform {
+    for target in &mut target {
         for mut cam in &mut camera {
             let bird_view = target.rotation * Vec3::new(0.0, 0.0, 1.0);
             let mut cam_transform =
