@@ -5,6 +5,7 @@ use std::f32::consts::*;
 
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
 use bevy::render::view::NoFrustumCulling;
+use bevy::utils::HashSet;
 use bevy::{
     pbr::AmbientLight,
     prelude::*,
@@ -38,6 +39,38 @@ impl BirbState {
 #[derive(Component)]
 struct Terrain;
 
+#[derive(Resource)]
+struct TerrainState {
+    chunk_size: u32,
+    view_radius: f32,
+    loaded_chunks: HashSet<(i32, i32)>, // Stores the coordinates of loaded chunks
+}
+
+impl TerrainState {
+    pub fn new(chunk_size: u32, view_radius: f32) -> Self {
+        TerrainState {
+            chunk_size,
+            view_radius,
+            loaded_chunks: HashSet::new(),
+        }
+    }
+
+    // Function to check if a chunk is loaded
+    pub fn is_chunk_loaded(&self, x: i32, z: i32) -> bool {
+        self.loaded_chunks.contains(&(x, z))
+    }
+
+    // Function to mark a chunk as loaded
+    pub fn add_chunk(&mut self, x: i32, z: i32) {
+        self.loaded_chunks.insert((x, z));
+    }
+
+    // Function to remove a chunk from the loaded set
+    pub fn remove_chunk(&mut self, x: i32, z: i32) {
+        self.loaded_chunks.remove(&(x, z));
+    }
+}
+
 #[derive(Component)]
 struct Birb;
 
@@ -50,10 +83,12 @@ fn main() {
             ..default()
         })
         .insert_resource(BirbState::new())
+        .insert_resource(TerrainState::new(16, 10.0))
         .add_systems(Startup, setup)
         .add_systems(
             Update,
             (
+                update_terrain_system,
                 joint_animation,
                 birb_inputs,
                 move_terrain,
@@ -110,15 +145,61 @@ fn setup(
         .insert(CameraTarget)
         .insert(Birb);
 
-    generate_terrain(&mut commands, &mut meshes, &mut materials);
+    // generate_terrain(&mut commands, &mut meshes, &mut materials);
 }
 
-fn generate_terrain(
+fn update_terrain_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut terrain_state: ResMut<TerrainState>,
+    birb_query: Query<&GlobalTransform, With<Birb>>,
+) {
+    if let Some(player_transform) = birb_query.iter().next() {
+        let player_pos = player_transform.compute_transform().translation;
+        let chunk_size = terrain_state.chunk_size;
+        let view_radius = terrain_state.view_radius;
+
+        // Determine the range of chunks that should be loaded
+        let min_chunk_x = ((player_pos.x - view_radius) / chunk_size as f32).floor() as i32;
+        let max_chunk_x = ((player_pos.x + view_radius) / chunk_size as f32).ceil() as i32;
+        let min_chunk_z = ((player_pos.z - view_radius) / chunk_size as f32).floor() as i32;
+        let max_chunk_z = ((player_pos.z + view_radius) / chunk_size as f32).ceil() as i32;
+
+        for x in min_chunk_x..=max_chunk_x {
+            for z in min_chunk_z..=max_chunk_z {
+                // Check if this chunk is already loaded
+                if !terrain_state.is_chunk_loaded(x, z) {
+                    // Generate this chunk
+                    let chunk_world_x = x as f32 * chunk_size as f32;
+                    let chunk_world_z = z as f32 * chunk_size as f32;
+
+                    //dbg!(min_chunk_x, max_chunk_x, min_chunk_z, max_chunk_z, chunk_world_x, chunk_world_z);
+                    //dbg!();
+
+                    generate_terrain_chunk(&mut commands, &mut meshes, &mut materials, chunk_world_x, chunk_world_z, chunk_size);
+
+                    // Mark this chunk as loaded
+                    terrain_state.add_chunk(x, z);
+                }
+            }
+        }
+
+        // Optional: Unload distant chunks
+        // You'll need to keep track of the entities associated with each chunk to do this effectively.
+        // This can be done by modifying the `TerrainState` to map chunk coordinates to entity IDs.
+    }
+}
+
+// Assuming generate_terrain_chunk is defined to generate a single chunk at specified coordinates.
+fn generate_terrain_chunk(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
+    chunk_x: f32,
+    chunk_z: f32,
+    chunk_size: u32, // Assuming chunk_size is the number of vertices along one edge of the chunk
 ) {
-    let size = 100; // Size of the terrain
     let max_height = 3.0; // Maximum elevation of the terrain
     let perlin = Perlin::new(1337); // Perlin noise generator
 
@@ -128,22 +209,27 @@ fn generate_terrain(
     let mut indices = Vec::new();
 
     // Generate terrain vertices
-    for x in 0..size {
-        for z in 0..size {
+    for x in 0..chunk_size {
+        for z in 0..chunk_size {
+            let world_x = chunk_x + x as f32;
+            let world_z = chunk_z + z as f32;
             let perlin_scale = 0.1;
-            let p = [x as f64 * perlin_scale, z as f64 * perlin_scale];
+            let p = [world_x as f64 * perlin_scale, world_z as f64 * perlin_scale];
             let height = perlin.get(p) as f32 * max_height;
+
             let delta = 0.001;
             let height_xm = perlin.get([p[0] - delta, p[1]]) as f32 * max_height;
             let height_zm = perlin.get([p[0], p[1] - delta]) as f32 * max_height;
             let height_xp = perlin.get([p[0] + delta, p[1]]) as f32 * max_height;
             let height_zp = perlin.get([p[0], p[1] + delta]) as f32 * max_height;
+
             let x_point = Vec3::new((p[0] + delta) as f32, height_xp, p[1] as f32)
                 - Vec3::new((p[0] - delta) as f32, height_xm, p[1] as f32);
             let z_point = Vec3::new(p[0] as f32, height_zp, (p[1] + delta) as f32)
                 - Vec3::new(p[0] as f32, height_zm, (p[1] - delta) as f32);
             let real_normal = x_point.cross(z_point).normalize();
-            // let real_normal = Vec3::new(0.0, 1.0, 0.0);
+            
+            //let real_normal = Vec3::new(0.0, 1.0, 0.0);
 
             // let linie = [original_point, original_point + real_normal];
             // let normal_display_mesh = Mesh::new(PrimitiveTopology::LineList)
@@ -160,22 +246,22 @@ fn generate_terrain(
             //     })
             //     .insert(Terrain);
 
-            positions.push([x as f32, height, z as f32]);
+            positions.push([world_x as f32, height, world_z as f32]);
             normals.push(real_normal);
-            uvs.push([x as f32 / (size - 1) as f32, z as f32 / (size - 1) as f32]);
+            uvs.push([x as f32 / (chunk_size - 1) as f32, z as f32 / (chunk_size - 1) as f32]);
         }
     }
 
     // Generate indices for the mesh
-    for x in 0..(size - 1) {
-        for z in 0..(size - 1) {
-            let start = x * size + z;
+    for x in 0..(chunk_size - 1) {
+        for z in 0..(chunk_size - 1) {
+            let start = x * chunk_size + z;
             indices.extend(&[
-                (start + size + 1) as u32,
-                (start + size) as u32,
+                (start + chunk_size + 1) as u32,
+                (start + chunk_size) as u32,
                 start as u32,
                 (start + 1) as u32,
-                (start + size + 1) as u32,
+                (start + chunk_size + 1) as u32,
                 start as u32,
             ]);
         }
@@ -191,7 +277,8 @@ fn generate_terrain(
     // Spawn the terrain entity
     commands
         .spawn(PbrBundle {
-            transform: Transform::from_xyz(0.0, 0.0, 0.0),
+            // transform: Transform::from_xyz(chunk_x, 0.0, chunk_z),
+            transform: Transform::from_xyz(0.0, -10.0, 0.0),
             mesh: meshes.add(mesh.clone()),
             material: materials.add(Color::GREEN.into()),
             ..default()
@@ -203,6 +290,7 @@ fn generate_terrain(
         .insert(NoFrustumCulling)
         .insert(Terrain);
 }
+
 
 fn move_terrain(
     keyboard_input: Res<Input<KeyCode>>,
