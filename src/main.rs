@@ -3,6 +3,7 @@
 
 use std::f32::consts::*;
 
+use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
 use bevy::render::view::NoFrustumCulling;
 use bevy::{
@@ -58,19 +59,27 @@ fn main() {
                 birb_inputs,
                 move_terrain,
                 birb_physics_update,
-                birb_visibility_for_debug,
+                debug_keys,
             ),
         )
         .add_plugins(plugins::camera::ControllerPlugin)
+        // .edit_schedule(PostUpdate, |schedule| {
+        //     schedule.set_build_settings(ScheduleBuildSettings {
+        //         ambiguity_detection: LogLevel::Warn,
+        //         ..default()
+        //     });
+        // })
         .run();
 }
 
-fn birb_visibility_for_debug(
-    mut birb: Query<&mut Visibility, With<Birb>>,
+fn debug_keys(
+    mut commands: Commands,
+    mut birb_visiblity: Query<&mut Visibility, With<Birb>>,
+    mut birb_physics: Query<Entity, With<Birb>>,
     inputs: Res<Input<KeyCode>>,
 ) {
     if inputs.just_pressed(KeyCode::F8) {
-        for mut b in &mut birb {
+        for mut b in &mut birb_visiblity {
             match *b {
                 Visibility::Visible | Visibility::Inherited => {
                     *b = Visibility::Hidden;
@@ -79,6 +88,11 @@ fn birb_visibility_for_debug(
                     *b = Visibility::Visible;
                 }
             }
+        }
+    }
+    if inputs.just_pressed(KeyCode::F9) {
+        for b in &mut birb_physics {
+            commands.entity(b).remove::<RigidBody>();
         }
     }
 }
@@ -353,7 +367,7 @@ const MAX_ANGLE: f32 = 0.15 * PI;
 fn birb_physics_update(
     time: Res<Time>,
     mut birb_state: ResMut<BirbState>,
-    mut birb: Query<(&mut ExternalForce, &Transform), With<Birb>>,
+    mut birb: Query<(&mut ExternalForce, &GlobalTransform), With<Birb>>,
     global_transforms: Query<&GlobalTransform>,
 ) {
     let birb_state = &mut *birb_state;
@@ -365,19 +379,22 @@ fn birb_physics_update(
             .zip(wing_joints)
         {
             let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
-            let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
+            // let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
             for (mut b, bt) in &mut birb {
                 // b.apply_force_at_point(
                 //     wind_force,
                 //     wing_joint_global_transform.translation(),
                 //     bt.translation,
                 // );
+                let wing_rot = wing_joint_global_transform.reparented_to(bt);
                 b.apply_force_at_point(
-                    Vec3::new(0.0, 1.0, 0.0) * if *angular_vel < 0.0 { 0.01 } else { 100.0 } * *angular_vel * time.delta_seconds(),
+                    wing_rot.rotation * Vec3::new(0.0, 1.0, 0.0)
+                        * if *angular_vel <= 0.0 { 0.01 } else { 100.0 }
+                        * *angular_vel
+                        * time.delta_seconds(),
                     wing_joint_global_transform.translation(),
-                    bt.translation,
+                    bt.translation(),
                 );
-                
             }
 
             //
@@ -394,6 +411,7 @@ fn birb_physics_update(
             *angle = new_angle;
         }
     }
+    // dbg!();
 }
 
 fn calculate_wind_force(time: &Res<Time>, bone: &GlobalTransform) -> Vec3 {
