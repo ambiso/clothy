@@ -231,6 +231,7 @@ fn move_terrain(
 fn joint_animation(
     parent_query: Query<&Parent, With<SkinnedMesh>>,
     children_query: Query<&Children>,
+    time: Res<Time>,
     mut transform_query: Query<&mut Transform>,
     mut birb_state: ResMut<BirbState>,
     // names: Query<&Name>,
