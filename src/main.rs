@@ -3,9 +3,14 @@
 
 use std::f32::consts::*;
 
-use bevy::{pbr::AmbientLight, prelude::*, render::mesh::{skinning::SkinnedMesh, Indices}};
-use noise::{NoiseFn, Perlin};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
+use bevy::render::view::NoFrustumCulling;
+use bevy::{
+    pbr::AmbientLight,
+    prelude::*,
+    render::mesh::{skinning::SkinnedMesh, Indices},
+};
+use noise::{NoiseFn, Perlin};
 
 #[derive(Resource)]
 struct BirbState {
@@ -29,7 +34,8 @@ impl BirbState {
 #[derive(Component)]
 struct Terrain;
 
-
+#[derive(Component)]
+struct Birb;
 
 fn main() {
     App::new()
@@ -40,15 +46,42 @@ fn main() {
         })
         .insert_resource(BirbState::new())
         .add_systems(Startup, setup)
-        .add_systems(Update, (joint_animation, birb_inputs, move_terrain, birb_physics_update))
+        .add_systems(
+            Update,
+            (
+                joint_animation,
+                birb_inputs,
+                move_terrain,
+                birb_physics_update,
+                birb_visibility_for_debug,
+            ),
+        )
         .run();
+}
+
+fn birb_visibility_for_debug(
+    mut birb: Query<&mut Visibility, With<Birb>>,
+    inputs: Res<Input<KeyCode>>,
+) {
+    if inputs.just_pressed(KeyCode::F8) {
+        for mut b in &mut birb {
+            match *b {
+                Visibility::Visible | Visibility::Inherited => {
+                    *b = Visibility::Hidden;
+                }
+                Visibility::Hidden => {
+                    *b = Visibility::Visible;
+                }
+            }
+        }
+    }
 }
 
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Create a camera
     commands.spawn(Camera3dBundle {
@@ -60,7 +93,7 @@ fn setup(
     commands.spawn(SceneBundle {
         scene: asset_server.load("models/birb2.gltf#Scene0"),
         ..default()
-    });
+    }).insert(Birb);
 
     generate_terrain(&mut commands, &mut meshes, &mut materials);
 }
@@ -82,20 +115,40 @@ fn generate_terrain(
     // Generate terrain vertices
     for x in 0..size {
         for z in 0..size {
-            let p = [x as f64 * 0.1, z as f64 * 0.1];
+            let perlin_scale = 0.1;
+            let p = [x as f64 * perlin_scale, z as f64 * perlin_scale];
             let height = perlin.get(p) as f32 * max_height;
-            let delta = 0.01;
-            let height_x = perlin.get([p[0] + delta, p[1]]) as f32 * max_height;
-            let height_z = perlin.get([p[0], p[1] + delta]) as f32 * max_height;
+            let delta = 0.001;
+            let height_xm = perlin.get([p[0] - delta, p[1]]) as f32 * max_height;
+            let height_zm = perlin.get([p[0], p[1] - delta]) as f32 * max_height;
+            let height_xp = perlin.get([p[0] + delta, p[1]]) as f32 * max_height;
+            let height_zp = perlin.get([p[0], p[1] + delta]) as f32 * max_height;
             let original_point = Vec3::new(p[0] as f32, height, p[1] as f32);
-            let x_point = Vec3::new((p[0] + delta) as f32, height_x, p[1] as f32);
-            let z_point = Vec3::new(p[0] as f32, height_z, (p[1] + delta) as f32);
-            let real_normal = (x_point - original_point).cross(z_point - original_point).normalize();
-            
+            let x_point = Vec3::new((p[0] + delta) as f32, height_xp, p[1] as f32)
+                - Vec3::new((p[0] - delta) as f32, height_xm, p[1] as f32);
+            let z_point = Vec3::new(p[0] as f32, height_zp, (p[1] + delta) as f32)
+                - Vec3::new(p[0] as f32, height_zm, (p[1] - delta) as f32);
+            let real_normal = x_point.cross(z_point).normalize();
+            // let real_normal = Vec3::new(0.0, 1.0, 0.0);
+
+            let linie = [original_point, original_point + real_normal];
+            let normal_display_mesh = Mesh::new(PrimitiveTopology::LineList)
+                .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, linie.to_vec());
+            let arrow_mesh_handle = meshes.add(normal_display_mesh);
+            let arrow_mat = materials.add(Color::RED.into());
+
+            commands
+                .spawn(PbrBundle {
+                    transform: Transform::from_xyz(x as f32, height, z as f32),
+                    mesh: arrow_mesh_handle.clone(),
+                    material: arrow_mat.clone(),
+                    ..default()
+                })
+                .insert(Terrain);
 
             positions.push([x as f32, height, z as f32]);
             normals.push(real_normal);
-            uvs.push([x as f32 / size as f32, z as f32 / size as f32]);
+            uvs.push([x as f32 / (size - 1) as f32, z as f32 / (size - 1) as f32]);
         }
     }
 
@@ -104,12 +157,12 @@ fn generate_terrain(
         for z in 0..(size - 1) {
             let start = x * size + z;
             indices.extend(&[
-                start as u32,
+                (start + size + 1) as u32,
                 (start + size) as u32,
+                start as u32,
+                (start + 1) as u32,
                 (start + size + 1) as u32,
                 start as u32,
-                (start + size + 1) as u32,
-                (start + 1) as u32,
             ]);
         }
     }
@@ -122,12 +175,15 @@ fn generate_terrain(
         .with_indices(Some(Indices::U32(indices)));
 
     // Spawn the terrain entity
-    commands.spawn(PbrBundle {
-        transform: Transform::from_xyz(0.0, 0.0, -73.0),
-        mesh: meshes.add(mesh),
-        material: materials.add(Color::GREEN.into()),
-        ..default()
-    }).insert(Terrain);
+    commands
+        .spawn(PbrBundle {
+            transform: Transform::from_xyz(0.0, 0.0, 0.0),
+            mesh: meshes.add(mesh),
+            material: materials.add(Color::GREEN.into()),
+            ..default()
+        })
+        .insert(NoFrustumCulling)
+        .insert(Terrain);
 }
 
 fn move_terrain(
@@ -151,10 +207,10 @@ fn move_terrain(
         if keyboard_input.pressed(KeyCode::Right) {
             transform.translation.x += speed;
         }
-        if keyboard_input.pressed(KeyCode::Numpad2) {
+        if keyboard_input.pressed(KeyCode::Numpad2) || keyboard_input.pressed(KeyCode::Key2) {
             transform.translation.y -= speed;
         }
-        if keyboard_input.pressed(KeyCode::Numpad8) {
+        if keyboard_input.pressed(KeyCode::Numpad8) || keyboard_input.pressed(KeyCode::Key8) {
             transform.translation.y += speed;
         }
     }
@@ -173,7 +229,6 @@ fn move_terrain(
 /// In this example, we want to get and animate the second joint.
 /// It is similar to the animation defined in `models/SimpleSkin/SimpleSkin.gltf`.
 fn joint_animation(
-    time: Res<Time>,
     parent_query: Query<&Parent, With<SkinnedMesh>>,
     children_query: Query<&Children>,
     mut transform_query: Query<&mut Transform>,
