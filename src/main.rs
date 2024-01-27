@@ -10,7 +10,11 @@ use bevy::{
     prelude::*,
     render::mesh::{skinning::SkinnedMesh, Indices},
 };
+use bevy_xpbd_3d::prelude::*;
 use noise::{NoiseFn, Perlin};
+use plugins::camera::CameraTarget;
+
+mod plugins;
 
 #[derive(Resource)]
 struct BirbState {
@@ -39,7 +43,7 @@ struct Birb;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
         .insert_resource(AmbientLight {
             brightness: 1.0,
             ..default()
@@ -56,6 +60,7 @@ fn main() {
                 birb_visibility_for_debug,
             ),
         )
+        .add_plugins(plugins::camera::ControllerPlugin)
         .run();
 }
 
@@ -95,6 +100,8 @@ fn setup(
             scene: asset_server.load("models/birb2.gltf#Scene0"),
             ..default()
         })
+        .insert((RigidBody::Dynamic, Collider::ball(0.5)))
+        .insert(CameraTarget)
         .insert(Birb);
 
     generate_terrain(&mut commands, &mut meshes, &mut materials);
