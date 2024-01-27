@@ -154,6 +154,7 @@ fn setup(
         })
         .insert((
             RigidBody::Dynamic,
+            LinearDamping(0.16),
             AngularDamping(1.6),
             Collider::ball(0.5),
             ExternalForce::default().with_persistence(false),
@@ -525,7 +526,7 @@ fn birb_physics_update(
                 let wing_rot = wing_joint_global_transform.reparented_to(bt);
                 b.apply_force(
                     // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
-                    (Vec3::new(0.0, 1.5, 1.0))
+                    (bt.compute_transform().rotation * Vec3::new(0.0, 1.5, 1.0))
                         * if accumulated_angular_vel <= 0.0 {
                             1.0
                         } else {
