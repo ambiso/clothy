@@ -100,7 +100,7 @@ fn setup(
             scene: asset_server.load("models/birb2.gltf#Scene0"),
             ..default()
         })
-        .insert((RigidBody::Dynamic, Collider::ball(0.5)))
+        .insert((RigidBody::Dynamic, Collider::ball(0.5), ExternalForce::default().with_persistence(false)))
         .insert(CameraTarget)
         .insert(Birb);
 
@@ -348,6 +348,7 @@ const MAX_ANGLE: f32 = 0.15 * PI;
 fn birb_physics_update(
     time: Res<Time>,
     mut birb_state: ResMut<BirbState>,
+    mut birb: Query<&mut ExternalForce, With<Birb>>,
     transforms: Query<&Transform>,
 ) {
     let birb_state = &mut *birb_state;
@@ -358,7 +359,13 @@ fn birb_physics_update(
             .zip(birb_state.angular_velocity.iter_mut())
             .zip(wing_joints)
         {
-            // let wind_force: Vec3 = calculate_wind_force(&time, wing_joint);
+            let wing_joint_transform = transforms.get(*wing_joint).unwrap();
+            let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_transform);
+            for mut b in &mut birb {
+                b.apply_force_at_point(wind_force, wing_joint_transform.translation, Vec3::ZERO);
+            }
+            
+            // 
             // let rot: &mut Quat = &mut transforms.get_mut(*entity).unwrap().rotation;
             let mut new_angle = *angle + *angular_vel * time.delta_seconds();
             if new_angle < MIN_ANGLE {
