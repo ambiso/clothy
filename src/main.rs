@@ -85,7 +85,7 @@ fn main() {
             ..default()
         })
         .insert_resource(BirbState::new())
-        .insert_resource(TerrainState::new(16, 10.0))
+        .insert_resource(TerrainState::new(16, 100.0))
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -149,6 +149,7 @@ fn setup(
     commands
         .spawn(SceneBundle {
             scene: asset_server.load("models/birb2.gltf#Scene0"),
+            transform: Transform::from_xyz(0.0, 50.0, 0.0),
             ..default()
         })
         .insert((
@@ -524,11 +525,11 @@ fn birb_physics_update(
                 let wing_rot = wing_joint_global_transform.reparented_to(bt);
                 b.apply_force(
                     // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
-                    (Vec3::new(0.0, 1.0, 0.0))
+                    (Vec3::new(0.0, 1.5, 1.0))
                         * if accumulated_angular_vel <= 0.0 {
-                            0.01
+                            1.0
                         } else {
-                            10.0
+                            5.0
                         }
                         * accumulated_angular_vel
                         * time.delta_seconds(),
