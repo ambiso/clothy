@@ -140,20 +140,20 @@ fn generate_terrain(
             let real_normal = x_point.cross(z_point).normalize();
             // let real_normal = Vec3::new(0.0, 1.0, 0.0);
 
-            let linie = [original_point, original_point + real_normal];
-            let normal_display_mesh = Mesh::new(PrimitiveTopology::LineList)
-                .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, linie.to_vec());
-            let arrow_mesh_handle = meshes.add(normal_display_mesh);
-            let arrow_mat = materials.add(Color::RED.into());
+            // let linie = [original_point, original_point + real_normal];
+            // let normal_display_mesh = Mesh::new(PrimitiveTopology::LineList)
+            //     .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, linie.to_vec());
+            // let arrow_mesh_handle = meshes.add(normal_display_mesh);
+            // let arrow_mat = materials.add(Color::RED.into());
 
-            commands
-                .spawn(PbrBundle {
-                    transform: Transform::from_xyz(x as f32, height, z as f32),
-                    mesh: arrow_mesh_handle.clone(),
-                    material: arrow_mat.clone(),
-                    ..default()
-                })
-                .insert(Terrain);
+            // commands
+            //     .spawn(PbrBundle {
+            //         transform: Transform::from_xyz(x as f32, height, z as f32),
+            //         mesh: arrow_mesh_handle.clone(),
+            //         material: arrow_mat.clone(),
+            //         ..default()
+            //     })
+            //     .insert(Terrain);
 
             positions.push([x as f32, height, z as f32]);
             normals.push(real_normal);
