@@ -103,6 +103,7 @@ fn setup(
         })
         .insert((
             RigidBody::Dynamic,
+            AngularDamping(50.6),
             Collider::ball(0.5),
             ExternalForce::default().with_persistence(false),
         ))
@@ -366,11 +367,17 @@ fn birb_physics_update(
             let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
             let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
             for (mut b, bt) in &mut birb {
+                // b.apply_force_at_point(
+                //     wind_force,
+                //     wing_joint_global_transform.translation(),
+                //     bt.translation,
+                // );
                 b.apply_force_at_point(
-                    wind_force,
-                    wing_joint_global_transform.translation() - bt.translation,
-                    Vec3::ZERO,
+                    Vec3::new(0.0, 1.0, 0.0) * if *angular_vel < 0.0 { 0.01 } else { 100.0 } * *angular_vel * time.delta_seconds(),
+                    wing_joint_global_transform.translation(),
+                    bt.translation,
                 );
+                
             }
 
             //
