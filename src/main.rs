@@ -196,7 +196,14 @@ fn update_terrain_system(
                     //dbg!(min_chunk_x, max_chunk_x, min_chunk_z, max_chunk_z, chunk_world_x, chunk_world_z);
                     //dbg!();
 
-                    generate_terrain_chunk(&mut commands, &mut meshes, &mut materials, chunk_world_x, chunk_world_z, chunk_size);
+                    generate_terrain_chunk(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        chunk_world_x,
+                        chunk_world_z,
+                        chunk_size,
+                    );
 
                     // Mark this chunk as loaded
                     terrain_state.add_chunk(x, z);
@@ -247,7 +254,7 @@ fn generate_terrain_chunk(
             let z_point = Vec3::new(p[0] as f32, height_zp, (p[1] + delta) as f32)
                 - Vec3::new(p[0] as f32, height_zm, (p[1] - delta) as f32);
             let real_normal = x_point.cross(z_point).normalize();
-            
+
             //let real_normal = Vec3::new(0.0, 1.0, 0.0);
 
             // let linie = [original_point, original_point + real_normal];
@@ -267,7 +274,10 @@ fn generate_terrain_chunk(
 
             positions.push([world_x as f32, height, world_z as f32]);
             normals.push(real_normal);
-            uvs.push([x as f32 / (chunk_size - 1) as f32, z as f32 / (chunk_size - 1) as f32]);
+            uvs.push([
+                x as f32 / (chunk_size - 1) as f32,
+                z as f32 / (chunk_size - 1) as f32,
+            ]);
         }
     }
 
@@ -309,7 +319,6 @@ fn generate_terrain_chunk(
         .insert(NoFrustumCulling)
         .insert(Terrain);
 }
-
 
 fn move_terrain(
     keyboard_input: Res<Input<KeyCode>>,
@@ -489,19 +498,21 @@ fn birb_physics_update(
             *angle = new_angle;
         }
         let lengths = [1.14, 2.57, 2.24, 1.29];
-        let mut accumulated_angular_vels = [0.0; 8];
+        let mut acc_vels = [0.0; 8];
         for side in 0..2 {
-            let mut accumulated_angular_vel = 0.0;
+            let mut acc_vel = 0.0;
+            let mut acc_ang_vel = 0.0;
             for joint in 0..4 {
                 let length = lengths[joint];
                 let idx = side * 4 + if side == 0 { 3 - joint } else { joint };
-                accumulated_angular_vel += birb_state.angular_velocity[idx] * length;
-                accumulated_angular_vels[idx] = accumulated_angular_vel;
+                acc_ang_vel += birb_state.angular_velocity[idx];
+                acc_vel += acc_ang_vel * length;
+                acc_vels[idx] = acc_vel;
             }
         }
-        dbg!(&accumulated_angular_vels);
+        dbg!(&acc_vels);
         for (wing_joint, accumulated_angular_vel) in
-            wing_joints.iter().zip(accumulated_angular_vels)
+            wing_joints.iter().zip(acc_vels)
         {
             let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
             // let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
@@ -513,13 +524,12 @@ fn birb_physics_update(
                 // );
                 let wing_rot = wing_joint_global_transform.reparented_to(bt);
                 b.apply_force_at_point(
-                    ((wing_rot.rotation * Vec3::new(0.0, 1.0, 0.0))
+                    (wing_rot.rotation * Vec3::new(0.0, 1.0, -1.0))
                         * if accumulated_angular_vel <= 0.0 {
                             0.01
                         } else {
-                            100.0
-                        })
-                    .mul(Vec3::new(0.001, 1.0, 0.001))
+                            50.0
+                        }
                         * accumulated_angular_vel
                         * time.delta_seconds(),
                     wing_joint_global_transform.translation(),
