@@ -534,19 +534,25 @@ fn birb_physics_update(
         let lengths = [1.14, 2.57, 2.24, 1.29];
         let area = [2.0, 1.0, 0.5, 0.25];
         let mut acc_vels = [0.0; 8];
+        let mut acc_angles = [0.0; 8];
         for side in 0..2 {
             let mut acc_vel = 0.0;
             let mut acc_ang_vel = 0.0;
+            let mut acc_angle = 0.0;
             for joint in 0..4 {
                 let length = lengths[joint];
                 let idx = side * 4 + if side == 0 { 3 - joint } else { joint };
                 acc_ang_vel += birb_state.angular_velocity[idx];
                 acc_vel += acc_ang_vel * length * area[joint];
                 acc_vels[idx] = acc_vel;
+
+                acc_angle += birb_state.angles[idx];
+                acc_angles[idx] = acc_angle;
             }
         }
-        dbg!(&acc_vels);
-        for (wing_joint, accumulated_angular_vel) in wing_joints.iter().zip(acc_vels) {
+        for (i, ((wing_joint, accumulated_angular_vel), acc_angle)) in
+            wing_joints.iter().zip(acc_vels).zip(acc_angles).enumerate()
+        {
             let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
             // let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
             for (mut b, bt) in &mut birb {
@@ -569,7 +575,8 @@ fn birb_physics_update(
                 );
                 b.apply_force_at_point(
                     // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
-                    (Vec3::new(0.0, 1.0, 0.0))
+                    (bt.compute_transform().rotation * Quat::from_rotation_z(if i >= 4 { -1.0 } else { 1.0 } * acc_angle)
+                        * Vec3::new(0.0, 1.5, 0.0))
                         * if accumulated_angular_vel <= 0.0 {
                             0.001
                         } else {
