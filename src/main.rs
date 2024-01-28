@@ -4,6 +4,7 @@
 use std::f32::consts::*;
 // use std::ops::Mul;
 
+use bevy::asset::AssetMetaCheck;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::render::mesh::shape::UVSphere;
 // use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
@@ -108,6 +109,7 @@ enum AppState {
 
 fn main() {
     App::new()
+        .insert_resource(AssetMetaCheck::Never)
         .add_plugins((
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {

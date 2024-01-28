@@ -28,8 +28,8 @@ command = "zstd"
 args = ["--ultra", "-22", "out/clothy_bg.wasm"]
 
 [tasks.bundle]
-command = "zip"
-args = ["-9r", "release.zip", "out/"]
+command = "bash"
+args = ["-c", "/bin/rm release.zip && cd out && zip -9r ../release.zip *"]
 
 [tasks.release]
 dependencies = [
