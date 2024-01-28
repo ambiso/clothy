@@ -223,12 +223,12 @@ fn setup(
     let perlin = Perlin::new(42);
     let scale = 10.0; // Scale for noise coordinates
                       // spawn collectibles
-    for i in 0..10 {
+    for i in 0..100 {
         // Create an icosphere
         let uvsphere_mesh = Mesh::from(UVSphere {
-            radius: 1.0,
-            sectors: 1,
-            stacks: 1,
+            radius: 3.0,
+            sectors: 14,
+            stacks: 14,
         });
 
         // Use Perlin noise for position
@@ -237,6 +237,10 @@ fn setup(
             perlin.get([0.0, i as f64 * 0.1, 0.0]) as f32 * scale,
             perlin.get([0.0, 0.0, i as f64 * 0.1]) as f32 * scale,
         );
+
+        // let position = Vec3::new(
+        //     i as f32 * 10.0, 10.0, 10.0
+        // );
 
         commands
             .spawn(PbrBundle {
