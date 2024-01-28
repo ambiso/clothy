@@ -4,7 +4,7 @@
 use std::f32::consts::*;
 // use std::ops::Mul;
 
-// use bevy::diagnostic::{DiagnosticsPlugin, FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 // use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
 use bevy::render::view::NoFrustumCulling;
@@ -17,6 +17,7 @@ use bevy::{
 use bevy_xpbd_3d::prelude::*;
 use noise::{NoiseFn, Perlin};
 use plugins::camera::CameraTarget;
+use plugins::score::{ScorePlugin, ScoreState, ScoreTarget};
 
 mod plugins;
 
@@ -89,7 +90,12 @@ enum AppState {
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, PhysicsPlugins::default()/* , FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin::default() */))
+        .add_plugins((
+            DefaultPlugins,
+            PhysicsPlugins::default(),
+            FrameTimeDiagnosticsPlugin,
+            LogDiagnosticsPlugin::default(),
+        ))
         // .insert_resource(Gravity(Vec3::ZERO))
         .insert_resource(AmbientLight {
             brightness: 1.0,
@@ -98,6 +104,8 @@ fn main() {
         .add_state::<AppState>()
         .insert_resource(BirbState::new())
         .insert_resource(TerrainState::new(128, 512.0 * CHUNK_SIZE_WORLD_SPACE_MUL))
+        .add_plugins(ScorePlugin)
+        .insert_resource(ScoreState { origin: BIRB_SPAWN.translation })
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -169,10 +177,7 @@ fn debug_keys(
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Create a camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0.0, 4.5, 7.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -194,6 +199,7 @@ fn setup(
             ExternalForce::default().with_persistence(false),
         ))
         .insert(CameraTarget)
+        .insert(ScoreTarget)
         .insert(Birb);
 
     commands.spawn(DirectionalLightBundle {
@@ -249,7 +255,7 @@ fn update_terrain_system(
             }
         }
 
-         // Unload distant chunks
+        // Unload distant chunks
         let mut chunks_to_unload = Vec::new();
         for (&(x, z), &entity) in terrain_state.loaded_chunks.iter() {
             if x < min_chunk_x || x > max_chunk_x || z < min_chunk_z || z > max_chunk_z {
@@ -602,7 +608,6 @@ fn birb_physics_update(
                 b.apply_force_at_point(
                     (bt.compute_transform().rotation
                         * Quat::from_rotation_z(if i >= 4 { -1.0 } else { 1.0 } * acc_angle)
-
                         * Vec3::new(0.0, 1.5, -0.05))
                         * if accumulated_angular_vel <= 0.0 {
                             0.001
@@ -695,12 +700,14 @@ fn calculate_turbulence_rotation(time: &Res<Time>, wing_position: Vec3) -> Quat 
 fn respawn_birb_when_grounded(
     mut collision_event_reader: EventReader<Collision>,
     mut birb: Query<(&mut Transform, &mut LinearVelocity, &mut AngularVelocity), With<Birb>>,
+    mut score_state: ResMut<ScoreState>,
 ) {
     for Collision(_) in collision_event_reader.read() {
-        info!("Collsision",);
+        info!("Collsision");
         for (mut bt, mut lv, mut av) in &mut birb {
             bt.translation.y = BIRB_SPAWN.translation.y;
             bt.rotation = BIRB_SPAWN.rotation;
+            score_state.origin = bt.translation;
             lv.0 = Vec3::ZERO;
             av.0 = Vec3::ZERO;
         }
