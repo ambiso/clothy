@@ -792,6 +792,7 @@ fn respawn_birb_when_grounded(
     collectibles: Query<&Collectible>,
     poop: Query<&Poop>,
     mut score_state: ResMut<ScoreState>,
+    mut gamestate: ResMut<GameState>,
 ) {
     for Collision(a) in collision_event_reader.read() {
         if birb.get(a.entity1).is_ok() || birb.get(a.entity2).is_ok() {
@@ -803,6 +804,7 @@ fn respawn_birb_when_grounded(
                     score_state.origin = bt.translation;
                     lv.0 = Vec3::ZERO;
                     av.0 = Vec3::ZERO;
+                    gamestate.waypoints_achieved_counter = 0;
                 }
             }
         }
@@ -824,6 +826,7 @@ fn respawn_birb_when_grounded(
 
                 // Increment the score
                 // GameState += 1;
+                gamestate.waypoints_achieved_counter += 1;
             }
         }
     }
