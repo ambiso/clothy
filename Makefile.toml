@@ -1,0 +1,43 @@
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+
+[tasks.build]
+command = "cargo"
+args = ["build", "--target", "wasm32-unknown-unknown", "--release"]
+
+[tasks.test]
+command = "cargo"
+args = ["test"]
+
+[tasks.wasm-bindgen]
+install_crate = "wasm-bindgen-cli"
+command = "wasm-bindgen"
+args = ["--out-dir", "./out/", "--target", "web", "./target/wasm32-unknown-unknown/release/clothy.wasm"]
+
+[tasks.copy-assets]
+command = "cp"
+args = ["-r", "assets", "index.html", "out"]
+
+[tasks.wasm-opt]
+command = "wasm-opt"
+args = ["-Os", "out/clothy_bg.wasm"]
+
+[tasks.compress]
+command = "zstd"
+args = ["--ultra", "-22", "out/clothy_bg.wasm"]
+
+[tasks.bundle]
+command = "zip"
+args = ["-9r", "release.zip", "out/"]
+
+[tasks.release]
+dependencies = [
+    "build",
+    # "test",
+    "wasm-bindgen",
+    # "wasm-opt",
+    # "compress",
+    "copy-assets",
+    "bundle"
+]
