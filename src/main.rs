@@ -97,7 +97,7 @@ fn main() {
         })
         .add_state::<AppState>()
         .insert_resource(BirbState::new())
-        .insert_resource(TerrainState::new(16, 100.0))
+        .insert_resource(TerrainState::new(128, 512.0 * CHUNK_SIZE_WORLD_SPACE_MUL))
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -218,18 +218,18 @@ fn update_terrain_system(
         let view_radius = terrain_state.view_radius;
 
         // Determine the range of chunks that should be loaded
-        let min_chunk_x = ((player_pos.x - view_radius) / chunk_size as f32).floor() as i32;
-        let max_chunk_x = ((player_pos.x + view_radius) / chunk_size as f32).ceil() as i32;
-        let min_chunk_z = ((player_pos.z - view_radius) / chunk_size as f32).floor() as i32;
-        let max_chunk_z = ((player_pos.z + view_radius) / chunk_size as f32).ceil() as i32;
+        let min_chunk_x = ((player_pos.x - view_radius) / chunk_size as f32 / CHUNK_SIZE_WORLD_SPACE_MUL).floor() as i32;
+        let max_chunk_x = ((player_pos.x + view_radius) / chunk_size as f32 / CHUNK_SIZE_WORLD_SPACE_MUL).ceil() as i32;
+        let min_chunk_z = ((player_pos.z - view_radius) / chunk_size as f32 / CHUNK_SIZE_WORLD_SPACE_MUL).floor() as i32;
+        let max_chunk_z = ((player_pos.z + view_radius) / chunk_size as f32 / CHUNK_SIZE_WORLD_SPACE_MUL).ceil() as i32;
 
         for x in min_chunk_x..=max_chunk_x {
             for z in min_chunk_z..=max_chunk_z {
                 // Check if this chunk is already loaded
                 if !terrain_state.is_chunk_loaded(x, z) {
                     // Generate this chunk
-                    let chunk_world_x = x as f32 * chunk_size as f32;
-                    let chunk_world_z = z as f32 * chunk_size as f32;
+                    let chunk_world_x = x as f32 * chunk_size as f32 * CHUNK_SIZE_WORLD_SPACE_MUL;
+                    let chunk_world_z = z as f32 * chunk_size as f32 * CHUNK_SIZE_WORLD_SPACE_MUL;
 
                     //dbg!(min_chunk_x, max_chunk_x, min_chunk_z, max_chunk_z, chunk_world_x, chunk_world_z);
                     //dbg!();
@@ -264,6 +264,8 @@ fn update_terrain_system(
     }
 }
 
+const CHUNK_SIZE_WORLD_SPACE_MUL: f32 = 12.0;
+
 // Assuming generate_terrain_chunk is defined to generate a single chunk at specified coordinates.
 fn generate_terrain_chunk(
     commands: &mut Commands,
@@ -273,7 +275,7 @@ fn generate_terrain_chunk(
     chunk_z: f32,
     chunk_size: u32, // Assuming chunk_size is the number of vertices along one edge of the chunk
 ) -> Entity {
-    let max_height = 3.0; // Maximum elevation of the terrain
+    let max_height = 15.0; // Maximum elevation of the terrain
     let perlin = Perlin::new(1337); // Perlin noise generator
 
     let mut positions = Vec::new();
@@ -284,9 +286,9 @@ fn generate_terrain_chunk(
     // Generate terrain vertices
     for x in 0..=chunk_size {
         for z in 0..=chunk_size {
-            let world_x = chunk_x + x as f32;
-            let world_z = chunk_z + z as f32;
-            let perlin_scale = 0.1;
+            let world_x = chunk_x + x as f32 * CHUNK_SIZE_WORLD_SPACE_MUL;
+            let world_z = chunk_z + z as f32 * CHUNK_SIZE_WORLD_SPACE_MUL;
+            let perlin_scale = 0.01;
             let p = [world_x as f64 * perlin_scale, world_z as f64 * perlin_scale];
             let height = perlin.get(p) as f32 * max_height;
 
