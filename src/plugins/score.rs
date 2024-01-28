@@ -25,7 +25,7 @@ impl Plugin for ScorePlugin {
 fn setup_text(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Text with multiple sections
     let bold_font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    let medium_font = asset_server.load("fonts/FiraSans-Medium.ttf");
+    let medium_font = asset_server.load("fonts/FiraMono-Medium.ttf");
     commands.spawn((
         // Create a TextBundle that has a Text with a list of sections.
         TextBundle::from_sections([
