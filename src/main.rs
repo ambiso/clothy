@@ -22,6 +22,14 @@ use plugins::score::{ScorePlugin, ScoreState, ScoreTarget};
 
 mod plugins;
 
+#[derive(PhysicsLayer)]
+enum Layer {
+    Player,
+    Enemy,
+    Ground,
+    Poop,
+}
+
 #[derive(Resource)]
 struct BirbState {
     original_rots: Option<Vec<Quat>>,
@@ -33,13 +41,14 @@ struct BirbState {
 
 impl BirbState {
     fn new() -> Self {
-        Self {
+        let birb_state = Self {
             original_rots: None,
             angles: vec![0.0; 8],
             angular_velocity: vec![0.0; 8],
             wing_joints: None,
             up_force: 0.0,
-        }
+        };
+        birb_state
     }
 }
 
@@ -114,6 +123,7 @@ fn main() {
         .insert_resource(BirbState::new())
         .insert_resource(TerrainState::new(128, 512.0 * CHUNK_SIZE_WORLD_SPACE_MUL))
         .add_plugins(ScorePlugin)
+        .add_plugins(plugins::poop::PoopPlugin)
         .insert_resource(ScoreState {
             origin: BIRB_SPAWN.translation,
         })
@@ -214,6 +224,10 @@ fn setup(
         ))
         .insert(CameraTarget)
         .insert(ScoreTarget)
+        .insert(CollisionLayers::new(
+            [Layer::Player],
+            [Layer::Enemy, Layer::Ground, Layer::Poop],
+        ))
         .insert(Birb);
 
     commands.spawn(DirectionalLightBundle {
@@ -420,6 +434,10 @@ fn generate_terrain_chunk(
         .insert((
             RigidBody::Static,
             Collider::convex_hull_from_mesh(&mesh).unwrap(),
+        ))
+        .insert(CollisionLayers::new(
+            [Layer::Ground],
+            [Layer::Player, Layer::Enemy, Layer::Ground, Layer::Poop],
         ))
         .insert(NoFrustumCulling)
         .insert(Terrain)
@@ -762,9 +780,9 @@ fn respawn_birb_when_grounded(
     mut score_state: ResMut<ScoreState>,
 ) {
     for Collision(a) in collision_event_reader.read() {
-        info!("Collsision");
         if birb.get(a.entity1).is_ok() || birb.get(a.entity2).is_ok() {
             if terrains.get(a.entity1).is_ok() || terrains.get(a.entity2).is_ok() {
+                info!("Respawn");
                 for (mut bt, mut lv, mut av) in &mut birb {
                     bt.translation.y = BIRB_SPAWN.translation.y;
                     bt.rotation = BIRB_SPAWN.rotation;
@@ -773,6 +791,7 @@ fn respawn_birb_when_grounded(
                     av.0 = Vec3::ZERO;
                 }
             } else if collectibles.get(a.entity1).is_ok() || collectibles.get(a.entity2).is_ok() {
+                info!("Collected!");
                 let collectible_entity = if collectibles.get(a.entity1).is_ok() {
                     a.entity1
                 } else {
