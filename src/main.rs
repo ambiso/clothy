@@ -113,14 +113,12 @@ fn main() {
             Update,
             (
                 update_terrain_system,
-                joint_animation,
-                birb_inputs,
                 move_terrain,
-                birb_physics_update,
                 respawn_birb_when_grounded,
             )
                 .run_if(in_state(AppState::InGame)),
         )
+        .add_systems(Update, (birb_inputs, birb_physics_update, joint_animation))
         .add_systems(Update, menu_stuff)
         .add_systems(Update, debug_keys)
         .add_plugins(plugins::camera::ControllerPlugin)
@@ -552,8 +550,10 @@ fn birb_physics_update(
     mut birb_state: ResMut<BirbState>,
     mut birb: Query<(&mut ExternalForce, &GlobalTransform), With<Birb>>,
     global_transforms: Query<&GlobalTransform>,
+    app_state: Res<State<AppState>>,
 ) {
     let birb_state = &mut *birb_state;
+    let paused = **app_state != AppState::InGame;
     if let Some(wing_joints) = birb_state.wing_joints.as_ref() {
         for ((angle, angular_vel), wing_joint) in birb_state
             .angles
@@ -600,48 +600,52 @@ fn birb_physics_update(
             let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
             let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.01;
             for (mut b, bt) in &mut birb {
-                b.apply_force_at_point(
-                    wind_force,
-                    wing_joint_global_transform.translation(),
-                    bt.translation(),
-                );
-                b.apply_force(
-                    (bt.compute_transform().rotation * Vec3::new(0.0, 1.5, 1.0))
-                        * if accumulated_angular_vel <= 0.0 {
-                            1.0
-                        } else {
-                            5.0
-                        }
-                        * accumulated_angular_vel
-                        * time.delta_seconds(),
-                );
-                b.apply_force_at_point(
-                    (bt.compute_transform().rotation
-                        * Quat::from_rotation_z(if i >= 4 { -1.0 } else { 1.0 } * acc_angle)
-                        * Vec3::new(0.0, 1.5, -0.05))
-                        * if accumulated_angular_vel <= 0.0 {
-                            0.001
-                        } else {
-                            0.1
-                        }
-                        * accumulated_angular_vel
-                        * time.delta_seconds(),
-                    wing_joint_global_transform.translation(),
-                    bt.translation(),
-                );
+                if !paused {
+                    b.apply_force_at_point(
+                        wind_force,
+                        wing_joint_global_transform.translation(),
+                        bt.translation(),
+                    );
+                    b.apply_force(
+                        (bt.compute_transform().rotation * Vec3::new(0.0, 1.5, 1.0))
+                            * if accumulated_angular_vel <= 0.0 {
+                                1.0
+                            } else {
+                                5.0
+                            }
+                            * accumulated_angular_vel
+                            * time.delta_seconds(),
+                    );
+                    b.apply_force_at_point(
+                        (bt.compute_transform().rotation
+                            * Quat::from_rotation_z(if i >= 4 { -1.0 } else { 1.0 } * acc_angle)
+                            * Vec3::new(0.0, 1.5, -0.05))
+                            * if accumulated_angular_vel <= 0.0 {
+                                0.001
+                            } else {
+                                0.1
+                            }
+                            * accumulated_angular_vel
+                            * time.delta_seconds(),
+                        wing_joint_global_transform.translation(),
+                        bt.translation(),
+                    );
+                }
             }
         }
     }
 
     // up & down
 
-    for (mut b, bt) in &mut birb {
-        b.apply_force_at_point(
-            // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
-            bt.compute_transform().rotation * Vec3::new(0.0, -0.35, 0.0) * birb_state.up_force,
-            bt.translation() + bt.compute_transform().rotation * Vec3::new(0.0, 0.0, -1.0),
-            bt.translation(),
-        );
+    if !paused {
+        for (mut b, bt) in &mut birb {
+            b.apply_force_at_point(
+                // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
+                bt.compute_transform().rotation * Vec3::new(0.0, -0.35, 0.0) * birb_state.up_force,
+                bt.translation() + bt.compute_transform().rotation * Vec3::new(0.0, 0.0, -1.0),
+                bt.translation(),
+            );
+        }
     }
     // dbg!();
 }
