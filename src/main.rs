@@ -104,6 +104,7 @@ fn main() {
                 birb_inputs,
                 move_terrain,
                 birb_physics_update,
+                print_collisions,
             )
                 .run_if(in_state(AppState::InGame)),
         )
@@ -181,7 +182,7 @@ fn setup(
     commands
         .spawn(SceneBundle {
             scene: asset_server.load("models/birb2.gltf#Scene0"),
-            transform: Transform::from_xyz(0.0, 50.0, 0.0),
+            transform: BIRB_SPAWN,
             ..default()
         })
         .insert((
@@ -200,6 +201,8 @@ fn setup(
 
     // generate_terrain(&mut commands, &mut meshes, &mut materials);
 }
+
+const BIRB_SPAWN: Transform = Transform::from_xyz(0.0, 50.0, 0.0);
 
 fn update_terrain_system(
     mut commands: Commands,
@@ -619,4 +622,15 @@ fn calculate_wind_force(time: &Res<Time>, bone: &GlobalTransform) -> Vec3 {
         time_factor,
     ]) as f32;
     Vec3::new(wind_force_x, wind_force_y, wind_force_z)
+}
+
+fn print_collisions(mut collision_event_reader: EventReader<Collision>, mut birb: Query<&mut Transform, With<Birb>>) {
+    for Collision(contacts) in collision_event_reader.iter() {
+        info!(
+            "Collsision",
+        );
+        for mut bt in &mut birb {
+            *bt = BIRB_SPAWN;
+        }
+    }
 }
