@@ -65,12 +65,7 @@ pub(crate) fn poop(
                         [Layer::Poop],
                         [Layer::Enemy, Layer::Ground, Layer::Poop],
                     ))
-                    .insert((
-                        RigidBody::Dynamic,
-                        Collider::ball(0.3),
-                        lv.clone(),
-                        av.clone(),
-                    ))
+                    .insert((RigidBody::Dynamic, Collider::ball(0.3), *lv, *av))
                     .insert(Poop);
                 poop_state.last_poop = time.elapsed_seconds_f64();
             }

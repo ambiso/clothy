@@ -5,7 +5,7 @@ use std::f32::consts::*;
 // use std::ops::Mul;
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::render::mesh::shape::{Icosphere, UVSphere};
+use bevy::render::mesh::shape::UVSphere;
 // use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
 use bevy::render::view::NoFrustumCulling;
@@ -43,14 +43,13 @@ struct BirbState {
 
 impl BirbState {
     fn new() -> Self {
-        let birb_state = Self {
+        Self {
             original_rots: None,
             angles: vec![0.0; 8],
             angular_velocity: vec![0.0; 8],
             wing_joints: None,
             up_force: 0.0,
-        };
-        birb_state
+        }
     }
 }
 
@@ -417,7 +416,7 @@ fn generate_terrain_chunk(
             //     })
             //     .insert(Terrain);
 
-            positions.push([world_x as f32, height, world_z as f32]);
+            positions.push([world_x, height, world_z]);
             normals.push(real_normal);
             uvs.push([
                 x as f32 / (chunk_size - 1) as f32,
@@ -431,12 +430,12 @@ fn generate_terrain_chunk(
         for z in 0..(chunk_size) {
             let start = x * (chunk_size + 1) + z;
             indices.extend(&[
-                (start + chunk_size + 2) as u32,
-                (start + chunk_size + 1) as u32,
-                start as u32,
-                (start + 1) as u32,
-                (start + chunk_size + 2) as u32,
-                start as u32,
+                (start + chunk_size + 2),
+                (start + chunk_size + 1),
+                start,
+                (start + 1),
+                (start + chunk_size + 2),
+                start,
             ]);
         }
     }
@@ -807,39 +806,38 @@ fn respawn_birb_when_grounded(
     mut gamestate: ResMut<GameState>,
 ) {
     for Collision(a) in collision_event_reader.read() {
-        if birb.get(a.entity1).is_ok() || birb.get(a.entity2).is_ok() {
-            if terrains.get(a.entity1).is_ok() || terrains.get(a.entity2).is_ok() {
-                info!("Respawn");
-                for (mut bt, mut lv, mut av) in &mut birb {
-                    bt.translation.y = BIRB_SPAWN.translation.y;
-                    bt.rotation = BIRB_SPAWN.rotation;
-                    score_state.origin = bt.translation;
-                    lv.0 = Vec3::ZERO;
-                    av.0 = Vec3::ZERO;
-                    gamestate.waypoints_achieved_counter = 0;
-                }
+        if (birb.get(a.entity1).is_ok() || birb.get(a.entity2).is_ok())
+            && (terrains.get(a.entity1).is_ok() || terrains.get(a.entity2).is_ok())
+        {
+            info!("Respawn");
+            for (mut bt, mut lv, mut av) in &mut birb {
+                bt.translation.y = BIRB_SPAWN.translation.y;
+                bt.rotation = BIRB_SPAWN.rotation;
+                score_state.origin = bt.translation;
+                lv.0 = Vec3::ZERO;
+                av.0 = Vec3::ZERO;
+                gamestate.waypoints_achieved_counter = 0;
             }
         }
-        if collectibles.get(a.entity1).is_ok() || collectibles.get(a.entity2).is_ok() {
-            if birb.get(a.entity1).is_ok()
+        if (collectibles.get(a.entity1).is_ok() || collectibles.get(a.entity2).is_ok())
+            && (birb.get(a.entity1).is_ok()
                 || birb.get(a.entity2).is_ok()
                 || poop.get(a.entity1).is_ok()
-                || poop.get(a.entity2).is_ok()
-            {
-                info!("Collected!");
-                let collectible_entity = if collectibles.get(a.entity1).is_ok() {
-                    a.entity1
-                } else {
-                    a.entity2
-                };
+                || poop.get(a.entity2).is_ok())
+        {
+            info!("Collected!");
+            let collectible_entity = if collectibles.get(a.entity1).is_ok() {
+                a.entity1
+            } else {
+                a.entity2
+            };
 
-                // Despawn the collectible
-                commands.entity(collectible_entity).despawn();
+            // Despawn the collectible
+            commands.entity(collectible_entity).despawn();
 
-                // Increment the score
-                // GameState += 1;
-                gamestate.waypoints_achieved_counter += 1;
-            }
+            // Increment the score
+            // GameState += 1;
+            gamestate.waypoints_achieved_counter += 1;
         }
     }
 }
