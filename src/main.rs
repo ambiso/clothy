@@ -685,12 +685,15 @@ fn calculate_turbulence_rotation(time: &Res<Time>, wing_position: Vec3) -> Quat 
 
 fn respawn_birb_when_grounded(
     mut collision_event_reader: EventReader<Collision>,
-    mut birb: Query<&mut Transform, With<Birb>>,
+    mut birb: Query<(&mut Transform, &mut LinearVelocity, &mut AngularVelocity), With<Birb>>,
 ) {
     for Collision(_) in collision_event_reader.read() {
         info!("Collsision",);
-        for mut bt in &mut birb {
-            *bt = BIRB_SPAWN;
+        for (mut bt, mut lv, mut av) in &mut birb {
+            bt.translation.y = BIRB_SPAWN.translation.y;
+            bt.rotation = BIRB_SPAWN.rotation;
+            lv.0 = Vec3::ZERO;
+            av.0 = Vec3::ZERO;
         }
     }
 }
