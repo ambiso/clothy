@@ -20,7 +20,7 @@ pub(crate) struct PoopState {
 }
 
 pub(crate) fn poop_setup(
-    asset_server: Res<AssetServer>,
+    // asset_server: Res<AssetServer>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -58,7 +58,7 @@ pub(crate) fn poop(
                         mesh: poop_state.poop_mesh.clone(),
                         material: poop_state.poop_material.clone(),
                         // scene: poop_state.poop_asset.clone(),
-                        transform: bt.clone(),
+                        transform: *bt,
                         ..default()
                     })
                     .insert(CollisionLayers::new(
@@ -70,7 +70,8 @@ pub(crate) fn poop(
                         Collider::ball(0.3),
                         lv.clone(),
                         av.clone(),
-                    )).insert(Poop);
+                    ))
+                    .insert(Poop);
                 poop_state.last_poop = time.elapsed_seconds_f64();
             }
         }

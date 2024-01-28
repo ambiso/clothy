@@ -102,7 +102,6 @@ struct Birb;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
 enum AppState {
-    MainMenu,
     #[default]
     InGame,
     Paused,
@@ -111,7 +110,20 @@ enum AppState {
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Birb Simulator".into(),
+                    fit_canvas_to_parent: true,
+                    prevent_default_event_handling: false,
+                    mode: if cfg!(debug_assertions) {
+                        bevy::window::WindowMode::Windowed
+                    } else {
+                        bevy::window::WindowMode::BorderlessFullscreen
+                    },
+                    ..default()
+                }),
+                ..default()
+            }),
             PhysicsPlugins::default(),
             FrameTimeDiagnosticsPlugin,
             LogDiagnosticsPlugin::default(),
@@ -163,7 +175,6 @@ fn menu_stuff(
 ) {
     if inputs.just_pressed(KeyCode::Escape) {
         match **current_state {
-            AppState::MainMenu => todo!(),
             AppState::InGame => {
                 next_state.set(AppState::Paused);
                 physics_time.pause();
@@ -239,11 +250,10 @@ fn setup(
         ..Default::default()
     });
 
-    let perlin = Perlin::new(42);
     let scale = 1000.0; // Scale for noise coordinates
     let radius = 10.0;
     // spawn collectibles
-    for i in 0..100 {
+    for _ in 0..100 {
         // Create an icosphere
         let uvsphere_mesh = Mesh::from(UVSphere {
             radius,
@@ -258,7 +268,7 @@ fn setup(
         // Use Perlin noise for position
         let position = Vec3::new(
             rng.sample(rand::distributions::Uniform::new(-scale, scale)),
-            rng.sample(rand::distributions::Uniform::new(0.0, 50.0)),
+            rng.sample(rand::distributions::Uniform::new(0.0, 150.0)),
             rng.sample(rand::distributions::Uniform::new(-scale, scale)),
         );
 
@@ -631,11 +641,10 @@ fn birb_physics_update(
     let birb_state = &mut *birb_state;
     let paused = **app_state != AppState::InGame;
     if let Some(wing_joints) = birb_state.wing_joints.as_ref() {
-        for ((angle, angular_vel), wing_joint) in birb_state
+        for (angle, angular_vel) in birb_state
             .angles
             .iter_mut()
             .zip(birb_state.angular_velocity.iter_mut())
-            .zip(wing_joints)
         {
             // let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
             //
