@@ -561,7 +561,7 @@ fn birb_physics_update(
                 //     wing_joint_global_transform.translation(),
                 //     bt.translation,
                 // );
-                let wing_rot = wing_joint_global_transform.reparented_to(bt);
+                // let wing_rot = wing_joint_global_transform.reparented_to(bt);
                 b.apply_force(
                     // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
                     (bt.compute_transform().rotation * Vec3::new(0.0, 1.5, 1.0))
@@ -576,7 +576,7 @@ fn birb_physics_update(
                 b.apply_force_at_point(
                     // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
                     (bt.compute_transform().rotation * Quat::from_rotation_z(if i >= 4 { -1.0 } else { 1.0 } * acc_angle)
-                        * Vec3::new(0.0, 1.5, 0.0))
+                        * Vec3::new(0.0, 1.5, -0.05))
                         * if accumulated_angular_vel <= 0.0 {
                             0.001
                         } else {
