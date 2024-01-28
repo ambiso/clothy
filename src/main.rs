@@ -401,6 +401,7 @@ fn joint_animation(
     children_query: Query<&Children>,
     mut transform_query: Query<&mut Transform>,
     mut birb_state: ResMut<BirbState>,
+    mut time: Res<Time>,
     // names: Query<&Name>,
 ) {
     // Iter skinned mesh entity
@@ -462,8 +463,10 @@ fn joint_animation(
             .zip(birb_state.angles.iter())
             .zip(birb_state.original_rots.as_ref().unwrap().iter())
         {
-            let rot = &mut transform_query.get_mut(*entity).unwrap().rotation;
-            *rot = *orig_rot * Quat::from_rotation_x(*angle);
+            let wing_joint_transform = &mut transform_query.get_mut(*entity).unwrap();
+            let wind_force: Quat = calculate_turbulence_rotation(&time, wing_joint_transform.translation);
+            let rot = &mut wing_joint_transform.rotation;
+            *rot = wind_force * *orig_rot * Quat::from_rotation_x(*angle);
         }
     }
 }
@@ -548,13 +551,13 @@ fn birb_physics_update(
         dbg!(&acc_vels);
         for (wing_joint, accumulated_angular_vel) in wing_joints.iter().zip(acc_vels) {
             let wing_joint_global_transform = global_transforms.get(*wing_joint).unwrap();
-            // let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.001;
+            let wind_force: Vec3 = calculate_wind_force(&time, wing_joint_global_transform) * 0.01;
             for (mut b, bt) in &mut birb {
-                // b.apply_force_at_point(
-                //     wind_force,
-                //     wing_joint_global_transform.translation(),
-                //     bt.translation,
-                // );
+                b.apply_force_at_point(
+                    wind_force,
+                    wing_joint_global_transform.translation(),
+                    bt.translation(),
+                );
                 let wing_rot = wing_joint_global_transform.reparented_to(bt);
                 b.apply_force(
                     // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
@@ -612,4 +615,37 @@ fn calculate_wind_force(time: &Res<Time>, bone: &GlobalTransform) -> Vec3 {
         time_factor,
     ]) as f32;
     Vec3::new(wind_force_x, wind_force_y, wind_force_z)
+}
+
+fn calculate_turbulence_rotation(time: &Res<Time>, wing_position: Vec3) -> Quat {
+    let perlin = Perlin::new(1337);
+    let time_factor = time.elapsed_seconds_f64();
+
+    // Adjust these scales to control the intensity and frequency of the turbulence
+    let scale = 3.0; // Scale for the noise to keep rotations subtle
+    let time_scale = 2.0; // Scale for time to control the speed of changes
+    
+    let intensity = 0.02 + perlin.get([time_factor, 0.0]) as f32 * 0.12;
+
+    // Generate Perlin noise values for each axis
+    let rotation_x = perlin.get([
+        wing_position.x as f64,
+        time_factor * time_scale,
+        0.0,
+    ]) as f32 * scale;
+    let rotation_y = perlin.get([
+        wing_position.y as f64 + 100.0, // Offset to ensure different noise value
+        time_factor * time_scale,
+        0.0,
+    ]) as f32 * scale;
+    let rotation_z = perlin.get([
+        wing_position.z as f64 + 200.0, // Further offset
+        time_factor * time_scale,
+        0.0,
+    ]) as f32 * scale;
+
+    // Create quaternions for each axis and multiply them to combine the rotations
+    (Quat::from_rotation_x(rotation_x) *
+    Quat::from_rotation_y(rotation_y) *
+    Quat::from_rotation_z(rotation_z)).lerp(Quat::IDENTITY, 1.0-intensity)
 }
