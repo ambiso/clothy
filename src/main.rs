@@ -25,6 +25,7 @@ mod plugins;
 #[derive(PhysicsLayer)]
 enum Layer {
     Player,
+    Collectible,
     Enemy,
     Ground,
     Poop,
@@ -226,7 +227,7 @@ fn setup(
         .insert(ScoreTarget)
         .insert(CollisionLayers::new(
             [Layer::Player],
-            [Layer::Enemy, Layer::Ground, Layer::Poop],
+            [Layer::Enemy, Layer::Ground, Layer::Poop, Layer::Collectible],
         ))
         .insert(Birb);
 
@@ -236,20 +237,25 @@ fn setup(
 
     let perlin = Perlin::new(42);
     let scale = 10.0; // Scale for noise coordinates
-                      // spawn collectibles
+    let radius = 3.0;
+    // spawn collectibles
     for i in 0..100 {
         // Create an icosphere
         let uvsphere_mesh = Mesh::from(UVSphere {
-            radius: 3.0,
+            radius,
             sectors: 14,
             stacks: 14,
         });
 
+        let mut rng = rand::thread_rng();
+
+        use rand::Rng;
+
         // Use Perlin noise for position
         let position = Vec3::new(
-            perlin.get([i as f64 * 0.1, 0.0, 0.0]) as f32 * scale,
-            perlin.get([0.0, i as f64 * 0.1, 0.0]) as f32 * scale,
-            perlin.get([0.0, 0.0, i as f64 * 0.1]) as f32 * scale,
+            rng.sample(rand::distributions::Uniform::new(-scale, scale)),
+            rng.sample(rand::distributions::Uniform::new(0.0, 50.0)),
+            rng.sample(rand::distributions::Uniform::new(-scale, scale)),
         );
 
         // let position = Vec3::new(
@@ -263,6 +269,8 @@ fn setup(
                 transform: Transform::from_translation(position),
                 ..Default::default()
             })
+            .insert((Sensor, Collider::ball(radius)))
+            .insert(CollisionLayers::new([Layer::Collectible], [Layer::Player]))
             .insert(Collectible);
     }
 
