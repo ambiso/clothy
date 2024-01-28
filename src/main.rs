@@ -614,7 +614,7 @@ fn birb_physics_update(
     for (mut b, bt) in &mut birb {
         b.apply_force_at_point(
             // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
-            Vec3::new(0.0, -0.15, 0.0) * birb_state.up_force,
+            Vec3::new(0.0, -0.35, 0.0) * birb_state.up_force,
             bt.translation() + bt.compute_transform().rotation * Vec3::new(0.0, 0.0, -1.0),
             bt.translation(),
         );
