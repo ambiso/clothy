@@ -39,6 +39,9 @@ pub(crate) fn poop_setup(
     });
 }
 
+#[derive(Component)]
+pub struct Poop;
+
 pub(crate) fn poop(
     mut commands: Commands,
     input: Res<Input<KeyCode>>,
@@ -67,7 +70,7 @@ pub(crate) fn poop(
                         Collider::ball(0.3),
                         lv.clone(),
                         av.clone(),
-                    ));
+                    )).insert(Poop);
                 poop_state.last_poop = time.elapsed_seconds_f64();
             }
         }

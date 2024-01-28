@@ -789,6 +789,7 @@ fn respawn_birb_when_grounded(
     mut birb: Query<(&mut Transform, &mut LinearVelocity, &mut AngularVelocity), With<Birb>>,
     terrains: Query<&Terrain>,
     collectibles: Query<&Collectible>,
+    poop: Query<&Poop>,
     mut score_state: ResMut<ScoreState>,
 ) {
     for Collision(a) in collision_event_reader.read() {
@@ -802,7 +803,14 @@ fn respawn_birb_when_grounded(
                     lv.0 = Vec3::ZERO;
                     av.0 = Vec3::ZERO;
                 }
-            } else if collectibles.get(a.entity1).is_ok() || collectibles.get(a.entity2).is_ok() {
+            }
+        }
+        if collectibles.get(a.entity1).is_ok() || collectibles.get(a.entity2).is_ok() {
+            if birb.get(a.entity1).is_ok()
+                || birb.get(a.entity2).is_ok()
+                || poop.get(a.entity1).is_ok()
+                || poop.get(a.entity2).is_ok()
+            {
                 info!("Collected!");
                 let collectible_entity = if collectibles.get(a.entity1).is_ok() {
                     a.entity1
