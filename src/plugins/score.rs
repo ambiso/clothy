@@ -33,7 +33,7 @@ fn setup_text(mut commands: Commands, asset_server: Res<AssetServer>) {
                 "Score: ",
                 TextStyle {
                     // This font is loaded and will be used instead of the default font.
-                    font: bold_font,
+                    font: bold_font.clone(),
                     font_size: 60.0,
                     ..default()
                 },
@@ -41,7 +41,7 @@ fn setup_text(mut commands: Commands, asset_server: Res<AssetServer>) {
             TextSection::from_style(
                 // "default_font" feature is unavailable, load a font to use instead.
                 TextStyle {
-                    font: medium_font,
+                    font: medium_font.clone(),
                     font_size: 60.0,
                     color: Color::GOLD,
                 },
@@ -50,7 +50,7 @@ fn setup_text(mut commands: Commands, asset_server: Res<AssetServer>) {
                 "Distance: ",
                 TextStyle {
                     // This font is loaded and will be used instead of the default font.
-                    font: bold_font,
+                    font: bold_font.clone(),
                     font_size: 60.0,
                     ..default()
                 },
@@ -58,7 +58,7 @@ fn setup_text(mut commands: Commands, asset_server: Res<AssetServer>) {
             TextSection::from_style(
                 // "default_font" feature is unavailable, load a font to use instead.
                 TextStyle {
-                    font: medium_font,
+                    font: medium_font.clone(),
                     font_size: 60.0,
                     color: Color::GOLD,
                 },
@@ -67,7 +67,7 @@ fn setup_text(mut commands: Commands, asset_server: Res<AssetServer>) {
                 "Collectibles: ",
                 TextStyle {
                     // This font is loaded and will be used instead of the default font.
-                    font: bold_font,
+                    font: bold_font.clone(),
                     font_size: 60.0,
                     ..default()
                 },
@@ -75,7 +75,7 @@ fn setup_text(mut commands: Commands, asset_server: Res<AssetServer>) {
             TextSection::from_style(
                 // "default_font" feature is unavailable, load a font to use instead.
                 TextStyle {
-                    font: medium_font,
+                    font: medium_font.clone(),
                     font_size: 60.0,
                     color: Color::GOLD,
                 },
@@ -97,7 +97,7 @@ fn text_update_system(
             distance = (tgt.translation - state.origin).length();
         }
         let coll = gamestate.waypoints_achieved_counter;
-        text.sections[1].value = format!("{:.2}\n", 2000.0 * coll + distance);
+        text.sections[1].value = format!("{:.2}\n", 2000.0 * coll as f32 + distance);
         text.sections[3].value = format!("{distance:.2}\n");
         text.sections[5].value = format!("{coll:.2}\n");
     }

@@ -18,6 +18,7 @@ use bevy::{
 use bevy_xpbd_3d::prelude::*;
 use noise::{NoiseFn, Perlin};
 use plugins::camera::CameraTarget;
+use plugins::poop::Poop;
 use plugins::score::{ScorePlugin, ScoreState, ScoreTarget};
 
 mod plugins;
