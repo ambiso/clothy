@@ -26,6 +26,7 @@ struct BirbState {
     angles: Vec<f32>,
     angular_velocity: Vec<f32>,
     wing_joints: Option<Vec<Entity>>,
+    up_force: f32,
 }
 
 impl BirbState {
@@ -35,6 +36,7 @@ impl BirbState {
             angles: vec![0.0; 8],
             angular_velocity: vec![0.0; 8],
             wing_joints: None,
+            up_force: 0.0,
         }
     }
 }
@@ -476,7 +478,8 @@ fn joint_animation(
             .zip(birb_state.original_rots.as_ref().unwrap().iter())
         {
             let wing_joint_transform = &mut transform_query.get_mut(*entity).unwrap();
-            let wind_force: Quat = calculate_turbulence_rotation(&time, wing_joint_transform.translation);
+            let wind_force: Quat =
+                calculate_turbulence_rotation(&time, wing_joint_transform.translation);
             let rot = &mut wing_joint_transform.rotation;
             *rot = wind_force * *orig_rot * Quat::from_rotation_x(*angle);
         }
@@ -512,6 +515,14 @@ fn birb_inputs(
                 -1.0
             };
     }
+
+    birb_state.up_force = if keyboard_input.pressed(KeyCode::V) {
+        1.0
+    } else if keyboard_input.pressed(KeyCode::N) {
+        -1.0
+    } else {
+        0.0
+    };
 }
 
 const ANGULAR_ACCELERATION: f32 = 20.0;
@@ -587,7 +598,9 @@ fn birb_physics_update(
                         * time.delta_seconds(),
                 );
                 b.apply_force_at_point(
-                    (bt.compute_transform().rotation * Quat::from_rotation_z(if i >= 4 { -1.0 } else { 1.0 } * acc_angle)
+                    (bt.compute_transform().rotation
+                        * Quat::from_rotation_z(if i >= 4 { -1.0 } else { 1.0 } * acc_angle)
+
                         * Vec3::new(0.0, 1.5, -0.05))
                         * if accumulated_angular_vel <= 0.0 {
                             0.001
@@ -601,6 +614,17 @@ fn birb_physics_update(
                 );
             }
         }
+    }
+
+    // up & down
+
+    for (mut b, bt) in &mut birb {
+        b.apply_force_at_point(
+            // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
+            Vec3::new(0.0, -0.15, 0.0) * birb_state.up_force,
+            bt.translation() + bt.compute_transform().rotation * Vec3::new(0.0, 0.0, -1.0),
+            bt.translation(),
+        );
     }
     // dbg!();
 }
@@ -640,40 +664,40 @@ fn calculate_turbulence_rotation(time: &Res<Time>, wing_position: Vec3) -> Quat 
     // Adjust these scales to control the intensity and frequency of the turbulence
     let scale = 3.0; // Scale for the noise to keep rotations subtle
     let time_scale = 2.0; // Scale for time to control the speed of changes
-    
+
     let intensity = 0.02 + perlin.get([time_factor, 0.0]) as f32 * 0.12;
 
     // Generate Perlin noise values for each axis
-    let rotation_x = perlin.get([
-        wing_position.x as f64,
-        time_factor * time_scale,
-        0.0,
-    ]) as f32 * scale;
+    let rotation_x =
+        perlin.get([wing_position.x as f64, time_factor * time_scale, 0.0]) as f32 * scale;
     let rotation_y = perlin.get([
         wing_position.y as f64 + 100.0, // Offset to ensure different noise value
         time_factor * time_scale,
         0.0,
-    ]) as f32 * scale;
+    ]) as f32
+        * scale;
     let rotation_z = perlin.get([
         wing_position.z as f64 + 200.0, // Further offset
         time_factor * time_scale,
         0.0,
-    ]) as f32 * scale;
+    ]) as f32
+        * scale;
 
     // Create quaternions for each axis and multiply them to combine the rotations
-    (Quat::from_rotation_x(rotation_x) *
-    Quat::from_rotation_y(rotation_y) *
-    Quat::from_rotation_z(rotation_z)).lerp(Quat::IDENTITY, 1.0-intensity)
+    (Quat::from_rotation_x(rotation_x)
+        * Quat::from_rotation_y(rotation_y)
+        * Quat::from_rotation_z(rotation_z))
+    .lerp(Quat::IDENTITY, 1.0 - intensity)
 }
 
-fn respawn_birb_when_grounded(mut collision_event_reader: EventReader<Collision>, mut birb: Query<&mut Transform, With<Birb>>) {
+fn respawn_birb_when_grounded(
+    mut collision_event_reader: EventReader<Collision>,
+    mut birb: Query<&mut Transform, With<Birb>>,
+) {
     for Collision(_) in collision_event_reader.read() {
-        info!(
-            "Collsision",
-        );
+        info!("Collsision",);
         for mut bt in &mut birb {
             *bt = BIRB_SPAWN;
         }
     }
-
 }
