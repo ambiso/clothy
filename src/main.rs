@@ -5,6 +5,7 @@ use std::f32::consts::*;
 // use std::ops::Mul;
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::render::mesh::shape::{Icosphere, UVSphere};
 // use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
 use bevy::render::view::NoFrustumCulling;
@@ -75,6 +76,14 @@ impl TerrainState {
     pub fn remove_chunk(&mut self, x: i32, z: i32) {
         self.loaded_chunks.remove(&(x, z));
     }
+}
+
+#[derive(Component)]
+struct Collectible;
+
+#[derive(Resource)]
+struct GameState {
+    waypoints_achieved_counter: u32,
 }
 
 #[derive(Component)]
@@ -177,7 +186,12 @@ fn debug_keys(
     }
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     // Create a camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0.0, 4.5, 7.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -205,6 +219,34 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(DirectionalLightBundle {
         ..Default::default()
     });
+
+    let perlin = Perlin::new(42);
+    let scale = 10.0; // Scale for noise coordinates
+                      // spawn collectibles
+    for i in 0..10 {
+        // Create an icosphere
+        let uvsphere_mesh = Mesh::from(UVSphere {
+            radius: 1.0,
+            sectors: 1,
+            stacks: 1,
+        });
+
+        // Use Perlin noise for position
+        let position = Vec3::new(
+            perlin.get([i as f64 * 0.1, 0.0, 0.0]) as f32 * scale,
+            perlin.get([0.0, i as f64 * 0.1, 0.0]) as f32 * scale,
+            perlin.get([0.0, 0.0, i as f64 * 0.1]) as f32 * scale,
+        );
+
+        commands
+            .spawn(PbrBundle {
+                mesh: meshes.add(uvsphere_mesh),
+                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                transform: Transform::from_translation(position),
+                ..Default::default()
+            })
+            .insert(Collectible);
+    }
 
     // generate_terrain(&mut commands, &mut meshes, &mut materials);
 }
@@ -712,18 +754,37 @@ fn calculate_turbulence_rotation(time: &Res<Time>, wing_position: Vec3) -> Quat 
 }
 
 fn respawn_birb_when_grounded(
+    mut commands: Commands,
     mut collision_event_reader: EventReader<Collision>,
     mut birb: Query<(&mut Transform, &mut LinearVelocity, &mut AngularVelocity), With<Birb>>,
+    terrains: Query<&Terrain>,
+    collectibles: Query<&Collectible>,
     mut score_state: ResMut<ScoreState>,
 ) {
-    for Collision(_) in collision_event_reader.read() {
+    for Collision(a) in collision_event_reader.read() {
         info!("Collsision");
-        for (mut bt, mut lv, mut av) in &mut birb {
-            bt.translation.y = BIRB_SPAWN.translation.y;
-            bt.rotation = BIRB_SPAWN.rotation;
-            score_state.origin = bt.translation;
-            lv.0 = Vec3::ZERO;
-            av.0 = Vec3::ZERO;
+        if birb.get(a.entity1).is_ok() || birb.get(a.entity2).is_ok() {
+            if terrains.get(a.entity1).is_ok() || terrains.get(a.entity2).is_ok() {
+                for (mut bt, mut lv, mut av) in &mut birb {
+                    bt.translation.y = BIRB_SPAWN.translation.y;
+                    bt.rotation = BIRB_SPAWN.rotation;
+                    score_state.origin = bt.translation;
+                    lv.0 = Vec3::ZERO;
+                    av.0 = Vec3::ZERO;
+                }
+            } else if collectibles.get(a.entity1).is_ok() || collectibles.get(a.entity2).is_ok() {
+                let collectible_entity = if collectibles.get(a.entity1).is_ok() {
+                    a.entity1
+                } else {
+                    a.entity2
+                };
+
+                // Despawn the collectible
+                commands.entity(collectible_entity).despawn();
+
+                // Increment the score
+                // GameState += 1;
+            }
         }
     }
 }
