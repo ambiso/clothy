@@ -240,7 +240,7 @@ fn setup(
     });
 
     let perlin = Perlin::new(42);
-    let scale = 10.0; // Scale for noise coordinates
+    let scale = 1000.0; // Scale for noise coordinates
     let radius = 3.0;
     // spawn collectibles
     for i in 0..100 {
