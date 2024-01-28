@@ -2,12 +2,13 @@
 //! Example taken from <https://github.com/KhronosGroup/glTF-Tutorials/blob/master/gltfTutorial/gltfTutorial_019_SimpleSkin.md>
 
 use std::f32::consts::*;
-use std::ops::Mul;
+// use std::ops::Mul;
 
-use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
+// use bevy::diagnostic::{DiagnosticsPlugin, FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+// use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
 use bevy::render::view::NoFrustumCulling;
-use bevy::utils::HashSet;
+use bevy::utils::HashMap;
 use bevy::{
     pbr::AmbientLight,
     prelude::*,
@@ -45,7 +46,7 @@ struct Terrain;
 struct TerrainState {
     chunk_size: u32,
     view_radius: f32,
-    loaded_chunks: HashSet<(i32, i32)>, // Stores the coordinates of loaded chunks
+    loaded_chunks: HashMap<(i32, i32), Entity>, // Stores the coordinates of loaded chunks
 }
 
 impl TerrainState {
@@ -53,18 +54,18 @@ impl TerrainState {
         TerrainState {
             chunk_size,
             view_radius,
-            loaded_chunks: HashSet::new(),
+            loaded_chunks: HashMap::new(),
         }
     }
 
     // Function to check if a chunk is loaded
     pub fn is_chunk_loaded(&self, x: i32, z: i32) -> bool {
-        self.loaded_chunks.contains(&(x, z))
+        self.loaded_chunks.contains_key(&(x, z))
     }
 
     // Function to mark a chunk as loaded
-    pub fn add_chunk(&mut self, x: i32, z: i32) {
-        self.loaded_chunks.insert((x, z));
+    pub fn add_chunk(&mut self, x: i32, z: i32, entity: Entity) {
+        self.loaded_chunks.insert((x, z), entity);
     }
 
     // Function to remove a chunk from the loaded set
@@ -86,7 +87,7 @@ enum AppState {
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .add_plugins((DefaultPlugins, PhysicsPlugins::default()/* , FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin::default() */))
         // .insert_resource(Gravity(Vec3::ZERO))
         .insert_resource(AmbientLight {
             brightness: 1.0,
@@ -169,8 +170,6 @@ fn debug_keys(
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Create a camera
     commands.spawn(Camera3dBundle {
@@ -233,7 +232,7 @@ fn update_terrain_system(
                     //dbg!(min_chunk_x, max_chunk_x, min_chunk_z, max_chunk_z, chunk_world_x, chunk_world_z);
                     //dbg!();
 
-                    generate_terrain_chunk(
+                    let chunk_entity = generate_terrain_chunk(
                         &mut commands,
                         &mut meshes,
                         &mut materials,
@@ -243,14 +242,23 @@ fn update_terrain_system(
                     );
 
                     // Mark this chunk as loaded
-                    terrain_state.add_chunk(x, z);
+                    terrain_state.add_chunk(x, z, chunk_entity);
                 }
             }
         }
 
-        // Optional: Unload distant chunks
-        // You'll need to keep track of the entities associated with each chunk to do this effectively.
-        // This can be done by modifying the `TerrainState` to map chunk coordinates to entity IDs.
+         // Unload distant chunks
+        let mut chunks_to_unload = Vec::new();
+        for (&(x, z), &entity) in terrain_state.loaded_chunks.iter() {
+            if x < min_chunk_x || x > max_chunk_x || z < min_chunk_z || z > max_chunk_z {
+                chunks_to_unload.push((x, z, entity));
+            }
+        }
+
+        for (x, z, entity) in chunks_to_unload {
+            commands.entity(entity).despawn();
+            terrain_state.remove_chunk(x, z);
+        }
     }
 }
 
@@ -262,7 +270,7 @@ fn generate_terrain_chunk(
     chunk_x: f32,
     chunk_z: f32,
     chunk_size: u32, // Assuming chunk_size is the number of vertices along one edge of the chunk
-) {
+) -> Entity {
     let max_height = 3.0; // Maximum elevation of the terrain
     let perlin = Perlin::new(1337); // Perlin noise generator
 
@@ -354,7 +362,8 @@ fn generate_terrain_chunk(
             Collider::convex_hull_from_mesh(&mesh).unwrap(),
         ))
         .insert(NoFrustumCulling)
-        .insert(Terrain);
+        .insert(Terrain)
+        .id()
 }
 
 fn move_terrain(
@@ -404,7 +413,7 @@ fn joint_animation(
     children_query: Query<&Children>,
     mut transform_query: Query<&mut Transform>,
     mut birb_state: ResMut<BirbState>,
-    mut time: Res<Time>,
+    time: Res<Time>,
     // names: Query<&Name>,
 ) {
     // Iter skinned mesh entity
@@ -567,9 +576,7 @@ fn birb_physics_update(
                     wing_joint_global_transform.translation(),
                     bt.translation(),
                 );
-                let wing_rot = wing_joint_global_transform.reparented_to(bt);
                 b.apply_force(
-                    // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
                     (bt.compute_transform().rotation * Vec3::new(0.0, 1.5, 1.0))
                         * if accumulated_angular_vel <= 0.0 {
                             1.0
@@ -580,7 +587,6 @@ fn birb_physics_update(
                         * time.delta_seconds(),
                 );
                 b.apply_force_at_point(
-                    // (wing_rot.rotation * Vec3::new(0.0, 0.0, -1.0))
                     (bt.compute_transform().rotation * Quat::from_rotation_z(if i >= 4 { -1.0 } else { 1.0 } * acc_angle)
                         * Vec3::new(0.0, 1.5, -0.05))
                         * if accumulated_angular_vel <= 0.0 {

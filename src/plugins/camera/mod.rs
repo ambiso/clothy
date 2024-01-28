@@ -1,6 +1,4 @@
-use std::time::Duration;
-
-use bevy::{prelude::*, render::RenderSet, transform::TransformSystem};
+use bevy::{prelude::*, transform::TransformSystem};
 use bevy_xpbd_3d::PhysicsSet;
 
 pub struct ControllerPlugin;
