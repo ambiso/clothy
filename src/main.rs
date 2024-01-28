@@ -211,7 +211,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // generate_terrain(&mut commands, &mut meshes, &mut materials);
 }
 
-const BIRB_SPAWN: Transform = Transform::from_xyz(0.0, 50.0, 0.0);
+const BIRB_SPAWN: Transform = Transform::from_xyz(0.0, 100.0, 0.0);
 
 fn update_terrain_system(
     mut commands: Commands,
