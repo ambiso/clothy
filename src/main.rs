@@ -121,6 +121,9 @@ fn main() {
             brightness: 1.0,
             ..default()
         })
+        .insert_resource(GameState {
+            waypoints_achieved_counter: 0,
+        })
         .add_state::<AppState>()
         .insert_resource(BirbState::new())
         .insert_resource(TerrainState::new(128, 512.0 * CHUNK_SIZE_WORLD_SPACE_MUL))
