@@ -265,11 +265,11 @@ fn setup(
         commands
             .spawn(PbrBundle {
                 mesh: meshes.add(uvsphere_mesh),
-                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                material: materials.add(Color::rgb(1.0, 0.843, 0.0).into()),
                 transform: Transform::from_translation(position),
                 ..Default::default()
             })
-            .insert((Sensor, Collider::ball(radius)))
+            .insert((Sensor, Collider::ball(radius * 1.2)))
             .insert(CollisionLayers::new([Layer::Collectible], [Layer::Player]))
             .insert(Collectible);
     }
