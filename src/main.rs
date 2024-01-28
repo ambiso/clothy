@@ -104,7 +104,7 @@ fn main() {
                 birb_inputs,
                 move_terrain,
                 birb_physics_update,
-                print_collisions,
+                respawn_birb_when_grounded,
             )
                 .run_if(in_state(AppState::InGame)),
         )
@@ -660,8 +660,8 @@ fn calculate_turbulence_rotation(time: &Res<Time>, wing_position: Vec3) -> Quat 
     Quat::from_rotation_z(rotation_z)).lerp(Quat::IDENTITY, 1.0-intensity)
 }
 
-fn print_collisions(mut collision_event_reader: EventReader<Collision>, mut birb: Query<&mut Transform, With<Birb>>) {
-    for Collision(contacts) in collision_event_reader.iter() {
+fn respawn_birb_when_grounded(mut collision_event_reader: EventReader<Collision>, mut birb: Query<&mut Transform, With<Birb>>) {
+    for Collision(_) in collision_event_reader.read() {
         info!(
             "Collsision",
         );
