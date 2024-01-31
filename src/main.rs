@@ -142,9 +142,7 @@ fn main() {
         .insert_resource(TerrainState::new(128, 512.0 * CHUNK_SIZE_WORLD_SPACE_MUL))
         .add_plugins(ScorePlugin)
         .add_plugins(plugins::poop::PoopPlugin)
-        .insert_resource(ScoreState {
-            origin: BIRB_SPAWN.translation,
-        })
+        .insert_resource(ScoreState { distance: 0.0 })
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -240,7 +238,9 @@ fn setup(
             ExternalForce::default().with_persistence(false),
         ))
         .insert(CameraTarget)
-        .insert(ScoreTarget)
+        .insert(ScoreTarget {
+            last_pos: BIRB_SPAWN.translation,
+        })
         .insert(CollisionLayers::new(
             [Layer::Player],
             [Layer::Enemy, Layer::Ground, Layer::Poop, Layer::Collectible],
@@ -800,7 +800,15 @@ fn calculate_turbulence_rotation(time: &Res<Time>, wing_position: Vec3) -> Quat 
 fn respawn_birb_when_grounded(
     mut commands: Commands,
     mut collision_event_reader: EventReader<Collision>,
-    mut birb: Query<(&mut Transform, &mut LinearVelocity, &mut AngularVelocity), With<Birb>>,
+    mut birb: Query<
+        (
+            &mut Transform,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+            &mut ScoreTarget,
+        ),
+        With<Birb>,
+    >,
     terrains: Query<&Terrain>,
     collectibles: Query<&Collectible>,
     poop: Query<&Poop>,
@@ -812,10 +820,11 @@ fn respawn_birb_when_grounded(
             && (terrains.get(a.entity1).is_ok() || terrains.get(a.entity2).is_ok())
         {
             info!("Respawn");
-            for (mut bt, mut lv, mut av) in &mut birb {
+            for (mut bt, mut lv, mut av, mut st) in &mut birb {
                 bt.translation.y = BIRB_SPAWN.translation.y;
                 bt.rotation = BIRB_SPAWN.rotation;
-                score_state.origin = bt.translation;
+                st.last_pos = bt.translation;
+                score_state.distance = 0.0;
                 lv.0 = Vec3::ZERO;
                 av.0 = Vec3::ZERO;
                 gamestate.waypoints_achieved_counter = 0;

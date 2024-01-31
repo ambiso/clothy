@@ -7,11 +7,13 @@ pub struct ScoreText;
 
 #[derive(Resource)]
 pub struct ScoreState {
-    pub origin: Vec3,
+    pub distance: f32,
 }
 
 #[derive(Component)]
-pub struct ScoreTarget;
+pub struct ScoreTarget {
+    pub last_pos: Vec3,
+}
 
 pub struct ScorePlugin;
 
@@ -87,16 +89,17 @@ fn setup_text(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn text_update_system(
     mut query: Query<&mut Text, With<ScoreText>>,
-    target: Query<&Transform, With<ScoreTarget>>,
-    state: Res<ScoreState>,
+    mut target: Query<(&Transform, &mut ScoreTarget)>,
+    mut state: ResMut<ScoreState>,
     gamestate: Res<GameState>,
 ) {
     for mut text in &mut query {
-        let mut distance = 0.0;
-        for tgt in &target {
-            distance = (tgt.translation - state.origin).length();
+        for (tt, mut tst) in &mut target {
+            state.distance += (tt.translation - tst.last_pos).length();
+            tst.last_pos = tt.translation;
         }
         let coll = gamestate.waypoints_achieved_counter;
+        let distance = state.distance;
         text.sections[1].value = format!("{:.2}\n", 2000.0 * coll as f32 + distance);
         text.sections[3].value = format!("{distance:.2}\n");
         text.sections[5].value = format!("{coll:.2}\n");
