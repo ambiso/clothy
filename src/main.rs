@@ -10,6 +10,7 @@ use bevy::render::mesh::shape::UVSphere;
 // use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
 use bevy::render::view::NoFrustumCulling;
+use bevy::transform::TransformSystem;
 use bevy::utils::HashMap;
 use bevy::{
     pbr::AmbientLight,
@@ -688,7 +689,7 @@ fn birb_physics_update(
             for (mut b, bt) in &mut birb {
                 if !paused {
                     b.apply_force_at_point(
-                        wind_force,
+                        wind_force * time.delta_seconds(),
                         wing_joint_global_transform.translation(),
                         bt.translation(),
                     );
