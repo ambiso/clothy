@@ -52,7 +52,7 @@ pub(crate) fn poop(
     // cooldown
     if time.elapsed_seconds_f64() - poop_state.last_poop > 0.5 {
         for (bt, lv, av) in &birb {
-            if input.just_pressed(KeyCode::Space) {
+            if input.pressed(KeyCode::Space) {
                 commands
                     .spawn(PbrBundle {
                         mesh: poop_state.poop_mesh.clone(),
@@ -65,10 +65,17 @@ pub(crate) fn poop(
                         [Layer::Poop],
                         [Layer::Enemy, Layer::Ground, Layer::Poop],
                     ))
-                    .insert((RigidBody::Dynamic, Collider::ball(0.3), *lv, *av))
+                    .insert((
+                        RigidBody::Dynamic,
+                        Collider::ball(0.3),
+                        LinearVelocity(lv.0 + bt.rotation * (POOP_VEL * Vec3::Y)),
+                        *av,
+                    ))
                     .insert(Poop);
                 poop_state.last_poop = time.elapsed_seconds_f64();
             }
         }
     }
 }
+
+const POOP_VEL: f32 = -10.0;
