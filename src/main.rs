@@ -10,7 +10,6 @@ use bevy::render::mesh::shape::UVSphere;
 // use bevy::ecs::schedule::{LogLevel, ScheduleBuildSettings};
 use bevy::render::mesh::{Mesh, PrimitiveTopology};
 use bevy::render::view::NoFrustumCulling;
-use bevy::transform::TransformSystem;
 use bevy::utils::HashMap;
 use bevy::{
     pbr::AmbientLight,
@@ -143,7 +142,7 @@ fn main() {
         .insert_resource(TerrainState::new(128, 512.0 * CHUNK_SIZE_WORLD_SPACE_MUL))
         .add_plugins(ScorePlugin)
         .add_plugins(plugins::poop::PoopPlugin)
-        .insert_resource(ScoreState { distance: 0.0 })
+        .insert_resource(ScoreState { distance: 0.0, hi_score: 0.0 })
         .add_systems(Startup, setup)
         .add_systems(
             Update,
